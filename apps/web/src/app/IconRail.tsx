@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { NavLink } from 'react-router-dom';
+import { Link, NavLink } from 'react-router-dom';
 import {
   ClipboardList,
   Flag,
@@ -14,6 +14,7 @@ import {
 import { NAV } from '../copy/strings.ts';
 import { formatCount } from '../lib/format.ts';
 import { RailAvatar } from './RailAvatar.tsx';
+import { AbhiMark } from './AbhiLogo.tsx';
 import type { DashboardSummary } from '../lib/api.ts';
 
 /**
@@ -143,7 +144,7 @@ export function IconRail({
       <div
         id="app-rail"
         className={[
-          'fixed inset-y-0 left-0 z-50 flex w-[116px] flex-col items-center py-6',
+          'fixed inset-y-0 left-0 z-50 flex w-[116px] flex-col items-center gap-9 py-11',
           'transition-transform duration-panel ease-out',
           open ? 'translate-x-0' : '-translate-x-full',
           'lg:translate-x-0',
@@ -154,10 +155,17 @@ export function IconRail({
           type="button"
           onClick={onClose}
           aria-label="Close navigation"
-          className="mb-2 self-end rounded-full bg-navy-800 p-2 text-white/70 transition-colors duration-fast hover:text-white lg:hidden"
+          className="-mb-6 self-end rounded-full bg-navy-800 p-2 text-white/70 transition-colors duration-fast hover:text-white lg:hidden"
         >
           <X size={18} />
         </button>
+
+        {/* The reference places the mark above the rail, 56px square. At a 76px
+            column the full lockup cannot fit, so the monogram carries the brand
+            here and the wordmark lives on the sign-in and print surfaces. */}
+        <Link to="/" aria-label="ABHI — go to dashboard" className="shrink-0 rounded-2xl">
+          <AbhiMark className="h-14 w-14" />
+        </Link>
 
         <nav
           aria-label="Main"
@@ -172,7 +180,7 @@ export function IconRail({
 
         {/* The reference parks a sign-out control and the account avatar at the
             foot of the column, separated from navigation by a large gap. */}
-        <div className="mt-auto flex flex-col items-center gap-5 pt-10">
+        <div className="mt-auto flex flex-col items-center gap-8">
           <button
             type="button"
             title="Sign out"

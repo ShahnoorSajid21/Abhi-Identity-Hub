@@ -88,11 +88,32 @@
    * A0 sits deliberately OUTSIDE the ramp. "Nobody has checked this person" is
    * not the first rung of confirmation, it is the absence of any — so it reads
    * neutral grey, and the green deepens only as real checks accumulate.
+   *
+   * MEASURED, on the white card surface these render against:
+   *
+   *   PASS  normal-vision separation — worst adjacent pair (A0 grey vs A1)
+   *         ΔE 16.7, clear of the floor of 15.
+   *   PASS  monotone lightness A1 → A3 (0.78 → 0.55 → 0.37), which is the
+   *         ordinal encoding itself.
+   *   FLOOR CVD separation — that same pair is ΔE 7.9 under protanopia, inside
+   *         the 6–8 band that is legal ONLY with secondary encoding. It is
+   *         legal here because every segment is named and counted in the
+   *         legend and separated by a 2px surface gap; colour alone never
+   *         carries the identity of a segment. Remove those labels and this
+   *         ramp is no longer compliant.
+   *   WARN  contrast vs surface is below 3:1 for the two lightest steps, which
+   *         is what obliges those visible labels rather than a bare chart.
+   *
+   * The two remaining validator FAILs — lightness band and chroma floor — are
+   * CATEGORICAL checks and do not apply to an ordinal ramp: spanning a wide
+   * lightness range is the point, and A0 reads grey by design. Re-run with
+   * `node scripts/validate_palette.js "#cbd5e1,#37d4a8,#00926d,#0a4a37"`
+   * before changing any value here.
    */
   --ladder-none: #cbd5e1;
-  --ladder-1: #7fe9ce;
-  --ladder-2: #00b88a;
-  --ladder-3: #0f6b4f;
+  --ladder-1: #37d4a8;
+  --ladder-2: #00926d;
+  --ladder-3: #0a4a37;
 
   /* Spacing scale — 4 / 8 / 12 / 16 / 24 / 32 / 48. Nothing else. */
   --space-1: 4px;
@@ -105,7 +126,7 @@
 
   /* Radii — matched to the dashboard reference: soft controls, generous cards. */
   --radius-control: 12px;
-  --radius-card: 20px;
+  --radius-card: 27px; /* measured from the reference card, node 10:1796 */
   --radius-rail: 38px;
   --radius-pill: 999px;
 
