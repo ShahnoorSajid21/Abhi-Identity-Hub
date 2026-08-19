@@ -76,7 +76,7 @@ export function DashboardPage() {
   if (summary.error !== null) {
     return (
       <>
-        <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.dashboard}</h1>
+        <h1 className="text-title font-semibold text-white">{PAGE_TITLES.dashboard}</h1>
         <div className="mt-6">
           <ErrorState error={summary.error} onRetry={summary.reload} />
         </div>
@@ -90,8 +90,8 @@ export function DashboardPage() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.dashboard}</h1>
-        <p className="text-caption text-ink-500">
+        <h1 className="text-title font-semibold text-white">{PAGE_TITLES.dashboard}</h1>
+        <p className="text-caption text-white/60">
           {NOTES.syntheticData}
           {d !== null && ` ${formatCount(d.totalCustomers)} records.`}
         </p>
@@ -136,7 +136,7 @@ export function DashboardPage() {
 
           {/* Money on this screen is modelled, and says so. The unit costs behind
               it are placeholder grid points awaiting Finance. */}
-          <p className="mt-2 text-caption text-ink-500">{NOTES.costsAreModelled}</p>
+          <p className="mt-2 text-caption text-white/70">{NOTES.costsAreModelled}</p>
 
           <div className="mt-6 grid gap-5 lg:grid-cols-3">
             <section className="card p-5 lg:col-span-2">

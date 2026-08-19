@@ -14,7 +14,7 @@ import { Construction } from 'lucide-react';
 export function UnderConstruction({ title, section }: { title: string; section: string }) {
   return (
     <>
-      <h1 className="text-title font-semibold text-ink-900">{title}</h1>
+      <h1 className="text-title font-semibold text-white">{title}</h1>
       <div className="card mt-6 flex flex-col items-center gap-3 px-6 py-12 text-center">
         <Construction size={28} className="text-ink-500" />
         <p className="text-body font-medium text-ink-900">This screen is still being built</p>

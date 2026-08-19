@@ -3,6 +3,7 @@
 @import '@fontsource/inter/500.css';
 @import '@fontsource/inter/600.css';
 @import '@fontsource/inter/700.css';
+@import '@fontsource/inter/800.css';
 
 @import './tokens.css';
 
@@ -13,12 +14,15 @@
 @layer base {
   html {
     -webkit-font-smoothing: antialiased;
+    /* The navy has to reach behind the safe areas too, or an iPhone shows a
+       white band under the content when the page overscrolls. */
+    background: var(--abhi-navy-900);
   }
 
   body {
     margin: 0;
-    background: var(--slate-50);
-    color: var(--slate-900);
+    background: var(--abhi-navy-900);
+    color: var(--white);
     font-family: Inter, ui-sans-serif, system-ui, sans-serif;
     font-size: 15px;
     line-height: 24px;
@@ -34,18 +38,42 @@
   }
 
   /* A visible focus ring is not optional on a screen a compliance officer
-     drives by keyboard. */
+     drives by keyboard. Mint reads clearly against both grounds — 9.1:1 on
+     navy, and it is the only accent in the palette, so a focused control is
+     never ambiguous. */
   :focus-visible {
-    outline: 2px solid var(--abhi-mint-600);
+    outline: 2px solid var(--abhi-mint-500);
     outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  /* The search input's native clear affordance is invisible on a dark field. */
+  input[type='search']::-webkit-search-cancel-button {
+    filter: invert(1) opacity(0.5);
+    cursor: pointer;
   }
 }
 
 @layer components {
+  /**
+   * The foreground panel. White on navy is the app's core contrast, and the
+   * shadow is tuned navy rather than black so the card lifts off the ground
+   * instead of smudging it.
+   */
   .card {
     background: var(--white);
     border: 1px solid var(--slate-200);
     border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    color: var(--slate-900);
+  }
+
+  /** A panel that stays on the navy layer — used inside the sidebar and bar. */
+  .card-dark {
+    background: var(--abhi-navy-800);
+    border: 1px solid var(--abhi-navy-600);
+    border-radius: var(--radius-card);
+    color: var(--white);
   }
 
   .label-caption {
@@ -54,5 +82,173 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--slate-500);
+  }
+
+  /** The same label, on navy. Slate-500 disappears against a dark ground. */
+  .label-caption-dark {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--abhi-mint-300);
+  }
+
+  /**
+   * Primary call to action.
+   *
+   * Navy on mint, never white on mint: white measures 2.0:1 against #00D09C
+   * and fails AA at every size, while navy measures 9.1:1. The hover is a
+   * luminance step down to --abhi-mint-600, so the control darkens under the
+   * cursor rather than changing hue.
+   */
+  .btn-primary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    background: var(--abhi-mint-500);
+    color: var(--abhi-navy-900);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 9px var(--space-4);
+    border-radius: var(--radius-control);
+    border: 1px solid transparent;
+    transition:
+      background-color var(--motion-fast) ease,
+      transform var(--motion-fast) ease;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--abhi-mint-600);
+  }
+
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /** Secondary, on a white card. */
+  .btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    background: var(--white);
+    color: var(--slate-700);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px var(--space-4);
+    border-radius: var(--radius-control);
+    border: 1px solid var(--slate-200);
+    transition:
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    border-color: var(--abhi-mint-500);
+    color: var(--slate-900);
+  }
+
+  .btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /** Secondary, on the navy ground. */
+  .btn-ghost-dark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    background: transparent;
+    color: var(--white);
+    font-size: 14px;
+    font-weight: 500;
+    padding: 9px var(--space-4);
+    border-radius: var(--radius-control);
+    border: 1px solid var(--abhi-navy-600);
+    transition:
+      border-color var(--motion-fast) ease,
+      background-color var(--motion-fast) ease;
+  }
+
+  .btn-ghost-dark:hover:not(:disabled) {
+    background: var(--abhi-navy-700);
+    border-color: var(--abhi-mint-500);
+  }
+
+  /**
+   * A text field. Mint focus ring on both grounds, per the interaction rules.
+   */
+  .field {
+    width: 100%;
+    background: var(--white);
+    color: var(--slate-900);
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-control);
+    padding: 8px var(--space-3);
+    font-size: 14px;
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease;
+  }
+
+  .field::placeholder {
+    color: var(--slate-500);
+  }
+
+  .field:focus {
+    outline: none;
+    border-color: var(--abhi-mint-500);
+    box-shadow: 0 0 0 3px rgb(0 208 156 / 0.25);
+  }
+
+  .field-dark {
+    width: 100%;
+    background: var(--abhi-navy-900);
+    color: var(--white);
+    border: 1px solid var(--abhi-navy-600);
+    border-radius: var(--radius-control);
+    padding: 8px var(--space-3);
+    font-size: 14px;
+    transition:
+      border-color var(--motion-fast) ease,
+      box-shadow var(--motion-fast) ease;
+  }
+
+  .field-dark::placeholder {
+    color: #8ea0c4;
+  }
+
+  .field-dark:focus {
+    outline: none;
+    border-color: var(--abhi-mint-500);
+    box-shadow: 0 0 0 3px rgb(0 208 156 / 0.25);
+  }
+
+  /**
+   * The geometric mint accent — a small square, rotated 45° where the brand
+   * calls for a diamond. Used sparingly: two in the logo lockup, one before a
+   * section heading. More than that and it stops being an accent.
+   */
+  .accent-square {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: var(--abhi-mint-500);
+    border-radius: 1px;
+  }
+
+  /** The vertical mint rule that separates the mark from the wordmark. */
+  .brand-divider {
+    width: 2px;
+    align-self: stretch;
+    background: var(--abhi-mint-500);
+    border-radius: 1px;
   }
 }

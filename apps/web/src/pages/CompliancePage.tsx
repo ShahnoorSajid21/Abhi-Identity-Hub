@@ -137,9 +137,9 @@ export function CompliancePage() {
 
   return (
     <>
-      <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.compliance}</h1>
+      <h1 className="text-title font-semibold text-white">{PAGE_TITLES.compliance}</h1>
 
-      <div className="mt-5 flex gap-1 border-b border-ink-200">
+      <div className="mt-5 flex gap-1 border-b border-navy-600">
         {([
           { id: 'freeze' as const, label: TABS.freezeReinstate },
           { id: 'erasure' as const, label: TABS.erasureRequests },
@@ -150,8 +150,8 @@ export function CompliancePage() {
             onClick={() => setTab(t.id)}
             className={`-mb-px border-b-2 px-4 py-2.5 text-cell font-medium transition-colors duration-fast ${
               tab === t.id
-                ? 'border-mint-600 text-ink-900'
-                : 'border-transparent text-ink-500 hover:text-ink-900'
+                ? 'border-mint-500 text-white'
+                : 'border-transparent text-white/60 hover:text-white'
             }`}
           >
             {t.label}

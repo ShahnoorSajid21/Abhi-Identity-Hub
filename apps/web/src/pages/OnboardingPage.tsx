@@ -126,7 +126,7 @@ export function OnboardingPage() {
 
   return (
     <>
-      <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.onboarding}</h1>
+      <h1 className="text-title font-semibold text-white">{PAGE_TITLES.onboarding}</h1>
 
       {/* Step rail */}
       <ol className="mt-5 flex flex-wrap gap-2">
@@ -138,7 +138,7 @@ export function OnboardingPage() {
                 ? 'bg-navy-700 text-white'
                 : i < step
                   ? 'bg-mint-100 text-ok-fg'
-                  : 'bg-ink-100 text-ink-500'
+                  : 'bg-ink-100 text-ink-700'
             }`}
           >
             <span className="tabular">{i + 1}</span>

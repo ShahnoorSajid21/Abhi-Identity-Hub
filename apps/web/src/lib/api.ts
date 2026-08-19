@@ -446,7 +446,7 @@ export const directory = {
 };
 
 /**
- * Sidebar counts. Returns null if the endpoint is unavailable, so the shell
+ * Rail counts. Returns null if the endpoint is unavailable, so the shell
  * renders without badges rather than showing a zero — a zero would claim
  * "nothing needs attention" when the truth is that nobody could ask.
  */

@@ -126,7 +126,7 @@ export function AuditPage() {
   if (error !== null) {
     return (
       <>
-        <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.audit}</h1>
+        <h1 className="text-title font-semibold text-white">{PAGE_TITLES.audit}</h1>
         <div className="mt-6">
           <ErrorState error={error} onRetry={reload} />
         </div>
@@ -136,8 +136,8 @@ export function AuditPage() {
 
   return (
     <>
-      <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.audit}</h1>
-      <p className="mt-1 text-cell text-ink-500">
+      <h1 className="text-title font-semibold text-white">{PAGE_TITLES.audit}</h1>
+      <p className="mt-1 text-cell text-white/70">
         This is the record an SBP inspector would be given.
       </p>
 

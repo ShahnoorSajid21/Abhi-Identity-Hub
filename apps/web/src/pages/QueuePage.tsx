@@ -113,7 +113,7 @@ export function QueuePage() {
   if (error !== null) {
     return (
       <>
-        <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.queue}</h1>
+        <h1 className="text-title font-semibold text-white">{PAGE_TITLES.queue}</h1>
         <div className="mt-6">
           <ErrorState error={error} onRetry={reload} />
         </div>
@@ -125,12 +125,12 @@ export function QueuePage() {
 
   return (
     <>
-      <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.queue}</h1>
-      <p className="mt-1 text-cell text-ink-500">
+      <h1 className="text-title font-semibold text-white">{PAGE_TITLES.queue}</h1>
+      <p className="mt-1 text-cell text-white/70">
         What each product asked, and what the identity records answered.
       </p>
 
-      <div className="mt-5 flex flex-wrap gap-1 border-b border-ink-200">
+      <div className="mt-5 flex flex-wrap gap-1 border-b border-navy-600">
         {TAB_FOR.map((t) => (
           <button
             key={t.id}
@@ -138,13 +138,13 @@ export function QueuePage() {
             onClick={() => setParams({ decision: t.id }, { replace: true })}
             className={`-mb-px flex items-center gap-2 border-b-2 px-4 py-2.5 text-cell font-medium transition-colors duration-fast ${
               active === t.id
-                ? 'border-mint-600 text-ink-900'
-                : 'border-transparent text-ink-500 hover:text-ink-900'
+                ? 'border-mint-500 text-white'
+                : 'border-transparent text-white/60 hover:text-white'
             }`}
           >
             {t.label}
             {counts !== undefined && (
-              <span className="tabular rounded-pill bg-ink-100 px-2 py-0.5 text-caption text-ink-700">
+              <span className="tabular rounded-pill bg-navy-700 px-2 py-0.5 text-caption text-white">
                 {counts[t.id]}
               </span>
             )}
@@ -232,7 +232,7 @@ export function QueueRequestPage() {
     <>
       <Link
         to="/queue"
-        className="inline-flex items-center gap-2 text-cell font-medium text-ink-500 transition-colors duration-fast hover:text-ink-900"
+        className="inline-flex items-center gap-2 text-cell font-medium text-white/70 transition-colors duration-fast hover:text-white"
       >
         <ArrowLeft size={15} />
         Back to the queue
@@ -243,11 +243,11 @@ export function QueueRequestPage() {
         <div>
           <Link
             to={`/customers/${data.subjectId}`}
-            className="text-title font-semibold text-ink-900 hover:underline"
+            className="text-title font-semibold text-white hover:underline"
           >
             {data.displayName}
           </Link>
-          <p className="text-cell text-ink-500">
+          <p className="text-cell text-white/70">
             {PRODUCTS[data.productId] ?? data.productId} · requested{' '}
             {formatRelative(data.requestedAt)}
           </p>

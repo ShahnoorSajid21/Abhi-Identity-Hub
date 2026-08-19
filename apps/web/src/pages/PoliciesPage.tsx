@@ -42,7 +42,7 @@ export function PoliciesPage() {
   if (error !== null) {
     return (
       <>
-        <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.policies}</h1>
+        <h1 className="text-title font-semibold text-white">{PAGE_TITLES.policies}</h1>
         <div className="mt-6">
           <ErrorState error={error} onRetry={reload} />
         </div>
@@ -97,8 +97,8 @@ export function PoliciesPage() {
 
   return (
     <>
-      <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.policies}</h1>
-      <p className="mt-2 max-w-3xl text-body text-ink-700">{NOTES.policyGovernance}</p>
+      <h1 className="text-title font-semibold text-white">{PAGE_TITLES.policies}</h1>
+      <p className="mt-2 max-w-3xl text-body text-white/75">{NOTES.policyGovernance}</p>
 
       {/* The pending state is shown rather than hidden. These values are
           engineering defaults drawn from the product manual; Compliance and the

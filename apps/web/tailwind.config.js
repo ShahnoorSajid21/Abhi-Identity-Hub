@@ -17,8 +17,10 @@ export default {
           500: 'var(--abhi-navy-500)',
         },
         mint: {
+          700: 'var(--abhi-mint-700)',
           600: 'var(--abhi-mint-600)',
           500: 'var(--abhi-mint-500)',
+          400: 'var(--abhi-mint-400)',
           300: 'var(--abhi-mint-300)',
           100: 'var(--abhi-mint-100)',
         },
@@ -31,10 +33,30 @@ export default {
           100: 'var(--slate-100)',
           50: 'var(--slate-50)',
         },
-        ok: { bg: 'var(--ok-bg)', fg: 'var(--ok-fg)', line: 'var(--ok-line)' },
-        warn: { bg: 'var(--warn-bg)', fg: 'var(--warn-fg)', line: 'var(--warn-line)' },
-        stop: { bg: 'var(--stop-bg)', fg: 'var(--stop-fg)', line: 'var(--stop-line)' },
-        new: { bg: 'var(--new-bg)', fg: 'var(--new-fg)', line: 'var(--new-line)' },
+        ok: {
+          bg: 'var(--ok-bg)',
+          fg: 'var(--ok-fg)',
+          line: 'var(--ok-line)',
+          dark: 'var(--ok-on-dark)',
+        },
+        warn: {
+          bg: 'var(--warn-bg)',
+          fg: 'var(--warn-fg)',
+          line: 'var(--warn-line)',
+          dark: 'var(--warn-on-dark)',
+        },
+        stop: {
+          bg: 'var(--stop-bg)',
+          fg: 'var(--stop-fg)',
+          line: 'var(--stop-line)',
+          dark: 'var(--stop-on-dark)',
+        },
+        new: {
+          bg: 'var(--new-bg)',
+          fg: 'var(--new-fg)',
+          line: 'var(--new-line)',
+          dark: 'var(--new-on-dark)',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
@@ -63,7 +85,12 @@ export default {
       borderRadius: {
         control: 'var(--radius-control)',
         card: 'var(--radius-card)',
+        rail: 'var(--radius-rail)',
         pill: 'var(--radius-pill)',
+      },
+      boxShadow: {
+        card: 'var(--shadow-card)',
+        panel: 'var(--shadow-panel)',
       },
       maxWidth: {
         content: '1280px',

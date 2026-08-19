@@ -12,30 +12,48 @@ import { NOTES, TOP_BAR } from '../copy/strings.ts';
  *
  * The figure carries its caveat because the unit costs behind it are modelled
  * grid points awaiting Finance, not ABHI's contracted rates.
+ *
+ * Renders as a button ONLY when a handler is supplied. It previously rendered
+ * a button unconditionally while the top bar passed nothing, so the control
+ * carried a hover state and a pointer cursor and then did nothing when
+ * clicked — the specific pattern that teaches a user their clicks are being
+ * dropped.
  */
 export function SpendMeter({ onOpenDetail }: { onOpenDetail?: () => void }) {
   const { data, error } = useApi((signal) => api.metrics(signal));
 
-  if (error !== null || data === null) {
+  const body =
+    error !== null || data === null ? (
+      <span className="text-cell text-white/50">—</span>
+    ) : (
+      <span className="tabular text-body font-semibold text-white">
+        {formatPkr(data.rails.costSpentPkr)}
+      </span>
+    );
+
+  const label = <span className="label-caption-dark">{TOP_BAR.spendLabel}</span>;
+
+  if (onOpenDetail === undefined) {
     return (
-      <div className="flex flex-col items-end">
-        <span className="label-caption">{TOP_BAR.spendLabel}</span>
-        <span className="text-cell text-ink-500">—</span>
+      <div
+        className="hidden flex-col items-end px-2 py-1 text-right sm:flex"
+        title={NOTES.costsAreModelled}
+      >
+        {label}
+        {body}
       </div>
     );
   }
-
-  const spent = data.rails.costSpentPkr;
 
   return (
     <button
       type="button"
       onClick={onOpenDetail}
       title={NOTES.costsAreModelled}
-      className="flex flex-col items-end rounded-control px-2 py-1 text-right transition-colors duration-fast hover:bg-ink-100"
+      className="hidden flex-col items-end rounded-control px-2 py-1 text-right transition-colors duration-fast hover:bg-navy-700 sm:flex"
     >
-      <span className="label-caption">{TOP_BAR.spendLabel}</span>
-      <span className="tabular text-body font-semibold text-ink-900">{formatPkr(spent)}</span>
+      {label}
+      {body}
     </button>
   );
 }

@@ -48,8 +48,8 @@ export function ApplyPage() {
 
   return (
     <>
-      <p className="label-caption">Apply for</p>
-      <h1 className="mt-1 text-title font-semibold text-ink-900">{product}</h1>
+      <p className="label-caption-dark">Apply for</p>
+      <h1 className="mt-1 text-title font-semibold text-white">{product}</h1>
 
       <div className="mt-6">
         {loading && (

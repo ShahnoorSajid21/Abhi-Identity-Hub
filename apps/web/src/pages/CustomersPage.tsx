@@ -143,7 +143,7 @@ export function CustomersPage() {
   if (error !== null) {
     return (
       <>
-        <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.customers}</h1>
+        <h1 className="text-title font-semibold text-white">{PAGE_TITLES.customers}</h1>
         <div className="mt-6">
           <ErrorState error={error} onRetry={reload} />
         </div>
@@ -158,8 +158,8 @@ export function CustomersPage() {
     <>
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-title font-semibold text-ink-900">{PAGE_TITLES.customers}</h1>
-          <p className="mt-1 text-cell text-ink-500">
+          <h1 className="text-title font-semibold text-white">{PAGE_TITLES.customers}</h1>
+          <p className="mt-1 text-cell text-white/70">
             {loading ? 'Loading…' : `${(data?.total ?? 0).toLocaleString('en-PK')} customers`}
           </p>
         </div>

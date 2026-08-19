@@ -42,8 +42,11 @@ const GATEWAY_RESPONSE = {
 };
 
 function renderJourney() {
+  // Typed with fetch's real signature so the recorded call can be read back
+  // without a cast — an untyped mock records `[]` and hides the arguments the
+  // assertions below actually depend on.
   const fetchSpy = vi.fn(
-    async () =>
+    async (_input: RequestInfo | URL, _init?: RequestInit) =>
       new Response(JSON.stringify(GATEWAY_RESPONSE), {
         status: 200,
         headers: { 'content-type': 'application/json' },
@@ -69,13 +72,13 @@ describe('PHASE-5 · A2 customer applying for SBL — the journey', () => {
     await waitFor(() => expect(screen.getByTestId('step-up-router')).toBeInTheDocument());
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
-    const [url, init] = fetchSpy.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('/api/kyc/verify');
-    expect(init.method).toBe('POST');
+    const [url, init] = fetchSpy.mock.calls[0]!;
+    expect(String(url)).toBe('/api/kyc/verify');
+    expect(init?.method).toBe('POST');
 
-    const sent = JSON.parse(init.body as string);
+    const sent = JSON.parse(init?.body as string);
     expect(sent).toEqual({ subjectId: SUBJECT_A2, productId: 'SBL' });
-    expect(init.body).not.toContain('cnic');
+    expect(init?.body).not.toContain('cnic');
   });
 
   test('the state transitions directly to face verification', async () => {
