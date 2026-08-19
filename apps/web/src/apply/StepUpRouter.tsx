@@ -21,6 +21,12 @@ import { OnboardingWizard } from './screens/OnboardingWizard.tsx';
  * component only mounts what that rule selected.
  */
 
+/** "A", "A and B", "A, B and C" — never "A and B and C". */
+function joinList(items: readonly string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
 export function StepUpRouter({
   result,
   productId,
@@ -66,8 +72,10 @@ export function StepUpRouter({
           <SkipForward size={16} className="mt-1 shrink-0" aria-hidden="true" />
           <span>
             {/* The saving, named. This is the sentence the whole programme
-                exists to be able to put in front of a customer. */}
-            We already have your {step.skipped.map((m) => (METHODS[m] ?? m).toLowerCase()).join(' and ')}
+                exists to be able to put in front of a customer. Method labels
+                keep their own casing — lowercasing them turns NADRA and CNIC
+                into words that read as typos. */}
+            We already have your {joinList(step.skipped.map((m) => METHODS[m] ?? m))}
             {step.skipped.length === 1 ? '' : ' checks'}, so we will not ask again. Just one more
             step for {product}.
           </span>

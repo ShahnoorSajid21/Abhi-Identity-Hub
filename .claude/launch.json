@@ -4,8 +4,24 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "@abhi/web"],
-      "port": 5173
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--workspace",
+        "@abhi/web"
+      ],
+      "port": 5173,
+      "autoPort": true
+    },
+    {
+      "name": "gateway",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "gateway:dev"
+      ],
+      "port": 8080,
+      "autoPort": true
     }
   ]
 }
