@@ -1,0 +1,462 @@
+openapi: 3.1.0
+info:
+  title: ABHI Unified KYC Ledger — Gateway API
+  version: 1.0.0
+  description: |
+    The single integration surface for every ABHI product. Products call this
+    API instead of re-implementing KYC.
+
+    **Security — POC vs production.** The POC authenticates by header
+    (`X-ABHI-MSP`, `X-ABHI-Role`) and the gateway refuses to boot with
+    `NODE_ENV=production` while that shim is active. Production requires mTLS
+    with client-certificate binding, OAuth2 client credentials, request signing
+    over (method, path, body hash, timestamp, nonce), and a replay nonce cache.
+    Identity is derived from the validated certificate and NEVER from a header.
+
+    **A proof bundle is not a session token.** It is evidence of attributes at a
+    point in time, never of current standing. Products MUST call `/kyc/verify`
+    at decision time. Caching an ALLOW beyond the request is a defect.
+  contact:
+    name: Digital Products, ABHI Microfinance Bank
+
+servers:
+  - url: https://kyc-gateway.abhi.local
+    description: Production (mTLS required)
+  - url: http://localhost:8080
+    description: Local POC
+
+tags:
+  - { name: KYC, description: Registration, verification, lifecycle }
+  - { name: Consent, description: Customer consent grants and revocation }
+  - { name: Audit, description: Version chains and audit trails }
+  - { name: Employer, description: Bulk employee eligibility }
+  - { name: Ops, description: Health, metrics, policy }
+
+components:
+  securitySchemes:
+    mtls:
+      type: mutualTLS
+      description: Production. Identity derived from the client certificate.
+    pocHeaders:
+      type: apiKey
+      in: header
+      name: X-ABHI-MSP
+      description: POC ONLY. Blocked when NODE_ENV=production.
+
+  schemas:
+    AssuranceLevel:
+      type: string
+      enum: [A0, A1, A2, A3]
+      description: |
+        A0 asserted (grants nothing) · A1 document-verified ·
+        A2 biometric-verified · A3 biometric + liveness.
+
+    VerificationMethod:
+      type: string
+      enum: [ASSERTED, VERISYS, DOC_AUTH, BIOMETRIC_1TO1, LIVENESS]
+
+    Decision:
+      type: object
+      required: [outcome, reason, missingMethods, policyId]
+      properties:
+        outcome:
+          type: string
+          enum: [ALLOW, STEP_UP, FULL_KYC, DENY]
+        reason:
+          type: string
+          enum: [SUFFICIENT, NO_RECORD, SUSPENDED, SHREDDED, CNIC_EXPIRED, ASSURANCE_LOW, STALE]
+        missingMethods:
+          type: array
+          items: { $ref: '#/components/schemas/VerificationMethod' }
+          description: For STEP_UP, exactly the methods to run — not the whole pack.
+        disclosableAttributes:
+          type: array
+          items: { type: string }
+        ageDays: { type: [integer, 'null'] }
+        currentAssurance: { $ref: '#/components/schemas/AssuranceLevel' }
+        requiredAssurance: { $ref: '#/components/schemas/AssuranceLevel' }
+        policyId:
+          type: string
+          example: EWA@v1
+          description: Policy version evaluated. Makes the decision reproducible later.
+
+    ProofBundle:
+      type: object
+      required: [merkleRoot, attributeSetId, attributes]
+      properties:
+        merkleRoot: { type: string, pattern: '^[0-9a-f]{64}$' }
+        attributeSetId: { type: string, example: ABHI-KYC-ATTRS-v1 }
+        attributes:
+          type: array
+          items:
+            type: object
+            required: [name, canonical, salt, path]
+            properties:
+              name: { type: string }
+              canonical:
+                type: string
+                description: Type-tagged committed form, e.g. `b:1`, `s:2031-04-11`.
+              salt: { type: string, pattern: '^[0-9a-f]{64}$' }
+              path:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    hash: { type: string, pattern: '^[0-9a-f]{64}$' }
+                    side: { type: string, enum: [left, right] }
+
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: ERR_INSUFFICIENT_ROLE
+        detail:
+          type: [string, 'null']
+          description: Absent for security-class errors, which never echo detail.
+        correlationId: { type: string, format: uuid }
+
+  responses:
+    BadRequest:
+      description: Validation failure or PII detected
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Forbidden:
+      description: Insufficient authority, or no valid consent
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    NotFound:
+      description: Subject not found
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+    Conflict:
+      description: Version conflict or illegal state transition
+      content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } }
+
+security:
+  - mtls: []
+
+paths:
+  /kyc/register:
+    post:
+      tags: [KYC]
+      summary: Register the first verification for a subject
+      description: |
+        Runs the verification journey, builds a salted Merkle root, writes salts
+        to the encrypted vault and commits v1. Endorsement: Compliance AND
+        (Bank OR Lending).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, attributes, originProduct, cnicExpiryAt]
+              properties:
+                cnic: { type: string, example: '61101-1234567-8' }
+                attributes:
+                  type: object
+                  additionalProperties: { type: [string, boolean, number] }
+                originProduct: { type: string, enum: [WALLET, EWA, ASA, SBL, MERCHANT_FINANCING, EMPLOYER, PARTNER] }
+                cnicExpiryAt: { type: string, format: date-time }
+      responses:
+        '201':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subjectId: { type: string, pattern: '^[0-9a-f]{64}$' }
+                  version: { type: integer }
+                  assuranceLevel: { $ref: '#/components/schemas/AssuranceLevel' }
+                  methods: { type: array, items: { $ref: '#/components/schemas/VerificationMethod' } }
+                  merkleRoot: { type: string }
+                  railCallsMade: { type: integer }
+                  costSpentPkr: { type: number }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /kyc/verify:
+    post:
+      tags: [KYC]
+      summary: Does an existing verification suffice for this product?
+      description: |
+        The most-called endpoint. On ALLOW, zero verification rails are invoked.
+        e-CIB always runs regardless — it is a credit check, not an identity
+        check, and cannot be skipped by reuse.
+
+        Supply `consentId` to receive a selective-disclosure proof.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, productId]
+              properties:
+                cnic: { type: string }
+                productId: { type: string, enum: [EWA, ASA, SBL, MERCHANT_FINANCING, EMPLOYER_BULK, PARTNER_READ, WALLET] }
+                consentId: { type: string, format: uuid }
+                requestedAttributes: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: Decision, and a proof when consent permits
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subjectId: { type: string }
+                  decision: { $ref: '#/components/schemas/Decision' }
+                  proof:
+                    oneOf:
+                      - { $ref: '#/components/schemas/ProofBundle' }
+                      - { type: 'null' }
+                  railCallsAvoided: { type: integer }
+                  costAvoidedPkr: { type: number }
+                  eCibCalled: { type: boolean }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /kyc/update:
+    post:
+      tags: [KYC]
+      summary: Step up or update — appends a hash-linked version
+      description: |
+        Runs ONLY the missing methods. An A2 customer applying for SBL runs one
+        liveness check, not the full onboarding pack. A suspension is carried
+        forward onto the new version.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, productId, attributes, cnicExpiryAt, reason]
+              properties:
+                cnic: { type: string }
+                productId: { type: string }
+                attributes: { type: object, additionalProperties: true }
+                cnicExpiryAt: { type: string, format: date-time }
+                reason: { type: string, maxLength: 512 }
+      responses:
+        '200': { description: New version appended }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /kyc/suspend:
+    post:
+      tags: [KYC]
+      summary: Freeze identity standing across every product
+      description: |
+        **ABHIComplianceMSP only, kyc.role=compliance-officer.** Every product
+        denies on its next call. Attempted from a product organization it fails
+        with ERR_COMPLIANCE_ONLY or ERR_INSUFFICIENT_ROLE, and the attempt is
+        recorded.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, reason, referenceId]
+              properties:
+                cnic: { type: string }
+                reason: { type: string, maxLength: 512 }
+                referenceId: { type: string, description: Case or ticket reference }
+      responses:
+        '200': { description: Suspended }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /kyc/reinstate:
+    post:
+      tags: [KYC]
+      summary: Lift a suspension
+      description: |
+        Compliance only. Does NOT alter assurance, expiry or verifiedAt —
+        reinstatement restores standing, it is not a re-verification.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, reason, referenceId]
+              properties:
+                cnic: { type: string }
+                reason: { type: string }
+                referenceId: { type: string }
+      responses:
+        '200': { description: Reinstated }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /kyc/shred:
+    post:
+      tags: [KYC]
+      summary: Crypto-shred — erasure
+      description: |
+        Compliance only. Destroys ciphertext, DEK and salts. The 32-byte root
+        remains as unlinkable bytes and the audit fact survives.
+
+        Vault destruction happens BEFORE the ledger write: a failed ledger call
+        then leaves a recoverable state, whereas the reverse order would leave
+        the ledger asserting an erasure that did not happen.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, reason, legalBasis]
+              properties:
+                cnic: { type: string }
+                reason: { type: string }
+                legalBasis: { type: string }
+      responses:
+        '200': { description: Shredded }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /consent/create:
+    post:
+      tags: [Consent]
+      summary: Record a customer consent grant
+      description: |
+        No wildcard scope. Expiry mandatory, capped at 730 days. `evidenceRef`
+        points at the T&C acceptance artefact the product already collects.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, grantedTo, purpose, scope, expiresAt, evidenceRef]
+              properties:
+                cnic: { type: string }
+                grantedTo: { type: string, enum: [ABHIBankMSP, ABHILendingMSP, ABHIComplianceMSP] }
+                purpose: { type: string, example: EWA_ORIGINATION }
+                scope: { type: array, minItems: 1, items: { type: string } }
+                expiresAt: { type: string, format: date-time }
+                evidenceRef: { type: string }
+      responses:
+        '201': { description: Consent recorded }
+        '400': { $ref: '#/components/responses/BadRequest' }
+
+  /consent/revoke:
+    post:
+      tags: [Consent]
+      summary: Revoke a consent
+      description: |
+        Not retroactive. Stops future disclosure; cannot un-disclose what was
+        already released. The audit trail shows exactly what was released, when,
+        under which consent.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnic, grantedTo, consentId, reason]
+              properties:
+                cnic: { type: string }
+                grantedTo: { type: string }
+                consentId: { type: string, format: uuid }
+                reason: { type: string }
+      responses:
+        '200': { description: Revoked }
+        '403': { $ref: '#/components/responses/Forbidden' }
+
+  /kyc/history:
+    get:
+      tags: [Audit]
+      summary: Version chain with integrity verification
+      description: |
+        THE audit deliverable. The chain is verifiable from a state export alone
+        — no peer access and no understanding of Fabric internals required.
+
+        `chainValid: false` in production is a **P1 security incident**, not a
+        data-quality ticket: it means state was altered outside chaincode.
+      parameters:
+        - { name: cnic, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Full chain
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subjectId: { type: string }
+                  versionCount: { type: integer }
+                  chainValid: { type: boolean }
+                  brokenAt: { type: [integer, 'null'] }
+                  versions: { type: array, items: { type: object } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /audit/events:
+    get:
+      tags: [Audit]
+      summary: Audit trail for a subject
+      description: Records attribute NAMES disclosed, never values.
+      parameters:
+        - { name: cnic, in: query, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Audit events }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /employer/bulk-lookup:
+    post:
+      tags: [Employer]
+      summary: Split an employee upload into activate-now and needs-onboarding
+      description: |
+        **Privacy note [OPEN-D].** This reveals whether a given CNIC is already
+        verified at ABHI. Acceptable only for CNICs the employer has a
+        demonstrated employment relationship with. Production requires
+        per-employer rate limiting and volume-anomaly alerting — see
+        SEC-05 in docs/SECURITY_AUDIT.md.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cnics]
+              properties:
+                cnics: { type: array, items: { type: string }, maxItems: 10000 }
+      responses:
+        '200':
+          description: Eligibility split
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  activateNow: { type: array, items: { type: string } }
+                  needsOnboarding: { type: array, items: { type: string } }
+                  denied: { type: array, items: { type: string } }
+                  invalid: { type: array, items: { type: string } }
+
+  /policies:
+    get:
+      tags: [Ops]
+      summary: Product policies currently in force
+      description: |
+        POC policies carry `approvedBy: ['PENDING:Compliance', ...]`. They are
+        ENGINEERING DEFAULTS, not Compliance-approved policy.
+      responses:
+        '200': { description: Policy set }
+
+  /metrics:
+    get:
+      tags: [Ops]
+      summary: Cost instrumentation
+      description: |
+        Calls made, calls avoided, cost incurred, cost avoided, e-CIB calls,
+        biometric lockouts, vault decrypts. This is the ROI measurement surface.
+      responses:
+        '200': { description: Metrics }
+
+  /health:
+    get:
+      tags: [Ops]
+      summary: Liveness and readiness
+      security: []
+      responses:
+        '200': { description: Healthy }

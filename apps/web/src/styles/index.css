@@ -1,0 +1,58 @@
+/* Inter, self-hosted. No CDN — the presenting room may have no network. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@import './tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    margin: 0;
+    background: var(--slate-50);
+    color: var(--slate-900);
+    font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 24px;
+  }
+
+  /* Every number in this app is tabular. Figures that shift width between
+     renders read as unstable, and a spend counter that ticks is the whole
+     point of §3.3. */
+  table,
+  [data-numeric],
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* A visible focus ring is not optional on a screen a compliance officer
+     drives by keyboard. */
+  :focus-visible {
+    outline: 2px solid var(--abhi-mint-600);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .card {
+    background: var(--white);
+    border: 1px solid var(--slate-200);
+    border-radius: var(--radius-card);
+  }
+
+  .label-caption {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--slate-500);
+  }
+}

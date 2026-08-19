@@ -1,0 +1,148 @@
+/**
+ * Pkcs11Hsm — hardware HSM via PKCS#11.
+ *
+ * REQUIRES: npm i graphene-pk11
+ *
+ * Closes GAP-01 / SEC-01. The pepper and KEK are generated inside the appliance
+ * and marked non-extractable: this process holds HANDLES, never key material.
+ * A heap dump of the gateway yields nothing.
+ *
+ * Operational consequences, called out because they are easy to miss:
+ *   - HSM latency sits on the critical path of EVERY subject-ID derivation.
+ *   - HSM availability is a hard dependency of the whole platform.
+ *   - Losing every HSM copy of the KEK is a bank-wide crypto-shred nobody
+ *     asked for. Off-site HSM backup with a TESTED restore is a go-live blocker.
+ */
+import * as graphene from 'graphene-pk11';
+import type { Hsm } from './hsm.ts';
+
+export interface Pkcs11Config {
+  /** Vendor library, e.g. /opt/hsm/libCryptoki2_64.so */
+  libraryPath: string;
+  slot: number;
+  pin: string;
+  /** CKA_LABEL of the non-extractable HMAC key. */
+  pepperLabel: string;
+  /** CKA_LABEL of the non-extractable AES-256 KEK. */
+  kekLabel: string;
+  pepperEpoch: number;
+}
+
+export class Pkcs11Hsm implements Hsm {
+  readonly kind = 'pkcs11' as const;
+  readonly pepperEpoch: number;
+
+  readonly #module: graphene.Module;
+  readonly #session: graphene.Session;
+  readonly #pepperKey: graphene.Key;
+  readonly #kekKey: graphene.Key;
+
+  private constructor(
+    mod: graphene.Module,
+    session: graphene.Session,
+    pepperKey: graphene.Key,
+    kekKey: graphene.Key,
+    epoch: number,
+  ) {
+    this.#module = mod;
+    this.#session = session;
+    this.#pepperKey = pepperKey;
+    this.#kekKey = kekKey;
+    this.pepperEpoch = epoch;
+  }
+
+  static open(cfg: Pkcs11Config): Pkcs11Hsm {
+    const mod = graphene.Module.load(cfg.libraryPath, 'ABHI-KYC-HSM');
+    mod.initialize();
+
+    const slot = mod.getSlots(cfg.slot);
+    const session = slot.open(
+      graphene.SessionFlag.SERIAL_SESSION | graphene.SessionFlag.RW_SESSION,
+    );
+    session.login(cfg.pin, graphene.UserType.USER);
+
+    const findByLabel = (label: string, keyClass: graphene.ObjectClass): graphene.Key => {
+      const found = session.find({ class: keyClass, label });
+      if (found.length === 0) {
+        throw new Error(
+          `FATAL: PKCS#11 key '${label}' not found in slot ${cfg.slot}. ` +
+            'Run the key ceremony before starting the gateway.',
+        );
+      }
+      return found.items(0).toType<graphene.Key>();
+    };
+
+    const pepperKey = findByLabel(cfg.pepperLabel, graphene.ObjectClass.SECRET_KEY);
+    const kekKey = findByLabel(cfg.kekLabel, graphene.ObjectClass.SECRET_KEY);
+
+    // Refuse to run against extractable keys. If CKA_EXTRACTABLE is true the
+    // entire custody argument collapses, and it is far better to fail at boot
+    // than to discover it during an incident.
+    for (const [label, key] of [[cfg.pepperLabel, pepperKey], [cfg.kekLabel, kekKey]] as const) {
+      const extractable = key.getAttribute({ extractable: null }).extractable;
+      if (extractable === true) {
+        throw new Error(`FATAL: PKCS#11 key '${label}' is EXTRACTABLE. Regenerate as non-extractable.`);
+      }
+    }
+
+    return new Pkcs11Hsm(mod, session, pepperKey, kekKey, cfg.pepperEpoch);
+  }
+
+  close(): void {
+    try {
+      this.#session.logout();
+      this.#session.close();
+    } finally {
+      this.#module.finalize();
+    }
+  }
+
+  hmacPepper(message: Buffer): Promise<string> {
+    const sign = this.#session.createSign('SHA256_HMAC', this.#pepperKey);
+    return Promise.resolve(sign.once(message).toString('hex'));
+  }
+
+  /**
+   * Generate a session-scoped DEK inside the HSM.
+   *
+   * Marked extractable because the DEK must leave the appliance to encrypt a
+   * record — this is exactly what the KEK exists to protect. The DEK is wrapped
+   * before it is persisted and zeroed after use; the KEK never leaves at all.
+   */
+  generateDek(): Promise<Buffer> {
+    const key = this.#session.generateKey(graphene.KeyGenMechanism.AES, {
+      class: graphene.ObjectClass.SECRET_KEY,
+      keyType: graphene.KeyType.AES,
+      valueLen: 32,
+      token: false,
+      sensitive: false,
+      extractable: true,
+      encrypt: true,
+      decrypt: true,
+    });
+    return Promise.resolve(Buffer.from(key.getAttribute({ value: null }).value as Buffer));
+  }
+
+  wrapDek(dek: Buffer): Promise<Buffer> {
+    const iv = this.#session.generateRandom(12);
+    const cipher = this.#session.createCipher(
+      { name: 'AES_GCM', params: new graphene.AesGcmParams(iv) },
+      this.#kekKey,
+    );
+    const ct = cipher.once(dek);
+    // iv || ciphertext+tag — the same envelope layout as SoftwareHsm, so the
+    // vault format is identical across implementations and a migration between
+    // them requires no re-encryption of records.
+    return Promise.resolve(Buffer.concat([Buffer.from(iv), ct]));
+  }
+
+  unwrapDek(wrapped: Buffer): Promise<Buffer> {
+    const iv = wrapped.subarray(0, 12);
+    const body = wrapped.subarray(12);
+    const decipher = this.#session.createDecipher(
+      { name: 'AES_GCM', params: new graphene.AesGcmParams(iv) },
+      this.#kekKey,
+    );
+    return Promise.resolve(decipher.once(body));
+  }
+}

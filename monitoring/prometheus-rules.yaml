@@ -1,0 +1,169 @@
+# ABHI Unified KYC Ledger — alerting rules
+#
+# Every P1 in this file is an INTEGRITY signal, not an availability one. That
+# ordering is deliberate: a ledger that is down is an incident, but a ledger
+# that is silently wrong is a catastrophe.
+groups:
+  # =========================================================================
+  - name: kyc-ledger-integrity
+    interval: 30s
+    rules:
+      - alert: KycChainIntegrityBroken
+        expr: kyc_chain_valid == 0
+        for: 0m
+        labels: { severity: P1, team: security, page: "true" }
+        annotations:
+          summary: "Version chain integrity FAILED for subject {{ $labels.subject_id }}"
+          description: >-
+            GetVersionChain returned chainValid=false at version {{ $labels.broken_at }}.
+            State was altered outside the chaincode path.
+          runbook: docs/runbooks/chain-integrity-broken.md
+          action: >-
+            Isolate the peer. Rebuild state from blocks. Forensics on access logs.
+            Do NOT "correct" the record — the mismatch is the evidence.
+
+      - alert: KycPiiDetected
+        expr: increase(kyc_errors_total{code="ERR_PII_DETECTED"}[5m]) > 0
+        for: 0m
+        labels: { severity: P1, team: security, page: "true" }
+        annotations:
+          summary: "PII tripwire fired — a CNIC-shaped payload reached the chaincode"
+          description: >-
+            The gateway is supposed to never send a CNIC. This firing means either
+            a gateway defect or a compromised gateway.
+          action: "Halt the calling service. Investigate the gateway immediately."
+
+      - alert: KycRegistryDivergence
+        expr: increase(kyc_errors_total{code="ERR_REGISTRY_DIVERGENCE"}[5m]) > 0
+        labels: { severity: P1, team: security, page: "true" }
+        annotations:
+          summary: "Registry pointer disagrees with record state"
+          description: "Partially-applied write or state corruption."
+          action: "Freeze writes for the subject. Reconcile registry against records."
+
+  # =========================================================================
+  - name: kyc-ledger-keys
+    interval: 30s
+    rules:
+      # The primary signal for attack scenario S-3. Bulk correlation of the
+      # ledger to real CNICs would show up here first.
+      - alert: HsmHmacRateAnomaly
+        expr: |
+          rate(hsm_hmac_operations_total[5m])
+            > (avg_over_time(rate(hsm_hmac_operations_total[5m])[7d:5m])
+               + 3 * stddev_over_time(rate(hsm_hmac_operations_total[5m])[7d:5m]))
+        for: 2m
+        labels: { severity: P1, team: security, page: "true" }
+        annotations:
+          summary: "HSM HMAC rate >3σ above baseline — possible correlation attack"
+          action: "Assess for bulk subject-ID derivation. Consider emergency pepper rotation."
+
+      - alert: VaultDecryptRateAnomaly
+        expr: |
+          rate(vault_decrypt_total[5m])
+            > (avg_over_time(rate(vault_decrypt_total[5m])[7d:5m])
+               + 3 * stddev_over_time(rate(vault_decrypt_total[5m])[7d:5m]))
+        for: 5m
+        labels: { severity: P2, team: security }
+        annotations:
+          summary: "Vault decrypt rate >3σ above baseline — possible exfiltration"
+
+      - alert: HsmUnavailable
+        expr: up{job="hsm-health"} == 0
+        for: 1m
+        labels: { severity: P1, team: platform, page: "true" }
+        annotations:
+          summary: "HSM unreachable — no subject-ID derivation is possible"
+          description: >-
+            The HSM is a hard dependency: every verification request needs an
+            HMAC. Expect total loss of new registrations and proof assembly.
+
+  # =========================================================================
+  - name: kyc-ledger-governance
+    interval: 1m
+    rules:
+      - alert: EndorsementFailureBurst
+        expr: increase(fabric_endorsement_failures_total[1h]) > 5
+        labels: { severity: P2, team: security }
+        annotations:
+          summary: "{{ $value }} endorsement failures from {{ $labels.msp_id }} in one hour"
+          description: >-
+            Possible unilateral-write attempts. Each rejected transaction is
+            recorded in a block with its validation code — review them.
+
+      - alert: ComplianceOnlyViolationAttempt
+        expr: increase(kyc_errors_total{code=~"ERR_COMPLIANCE_ONLY|ERR_INSUFFICIENT_ROLE"}[1h]) > 3
+        labels: { severity: P2, team: compliance }
+        annotations:
+          summary: "Repeated attempts to invoke Compliance-only functions"
+
+      - alert: SuspensionReinstatementChurn
+        expr: increase(kyc_status_changes_total{action="REINSTATE"}[90d]) > 2
+        labels: { severity: P3, team: compliance }
+        annotations:
+          summary: "Subject suspended and reinstated more than twice this quarter"
+          description: "Possible control abuse. Review the case references."
+
+  # =========================================================================
+  - name: kyc-ledger-cost-and-friction
+    interval: 5m
+    rules:
+      - alert: RailSpendOverBudget
+        expr: |
+          increase(rail_cost_pkr_total[1d]) > 1.2 * kyc_daily_rail_budget_pkr
+        labels: { severity: P2, team: platform }
+        annotations:
+          summary: "Rail spend at {{ $value }} PKR — over 120% of daily budget"
+          description: "Cost attack, integration defect, or a reuse regression."
+
+      # Reuse rate falling is how this platform silently stops delivering value.
+      - alert: ReuseRateRegression
+        expr: |
+          (sum(rate(kyc_decisions_total{outcome="ALLOW"}[1h]))
+           / sum(rate(kyc_decisions_total[1h]))) < 0.20
+        for: 6h
+        labels: { severity: P3, team: product }
+        annotations:
+          summary: "KYC reuse rate below 20% for six hours"
+          description: >-
+            The programme's entire value is the reuse rate. A sustained drop means
+            policy drift, an expiry cliff, or a product integration regression.
+
+      - alert: BiometricLockoutsRising
+        expr: increase(rail_cap_lockouts_total[1d]) > 50
+        labels: { severity: P3, team: product }
+        annotations:
+          summary: "{{ $value }} customers hit the 3-per-day biometric cap today"
+          description: >-
+            This is the friction the ledger exists to remove. A rise suggests
+            reuse is not being applied where it should be.
+
+  # =========================================================================
+  - name: kyc-ledger-availability
+    interval: 30s
+    rules:
+      - alert: GatewayLatencyHigh
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job="kyc-gateway"}[5m])) > 0.3
+        for: 10m
+        labels: { severity: P2, team: platform }
+        annotations:
+          summary: "VerifyKYC p99 above the 300ms target"
+
+      # Compliance peers are on the critical path of EVERY write. If all of
+      # them are down, no write can commit anywhere in the network.
+      - alert: AllCompliancePeersDown
+        expr: sum(up{job="fabric-peer", msp="ABHIComplianceMSP"}) == 0
+        for: 1m
+        labels: { severity: P1, team: platform, page: "true" }
+        annotations:
+          summary: "ALL Compliance peers are down — no write can commit network-wide"
+          description: >-
+            The endorsement policy requires a Compliance signature. With no
+            Compliance peer reachable the entire ledger is read-only.
+
+      - alert: OrdererQuorumAtRisk
+        expr: sum(up{job="fabric-orderer"}) < 3
+        for: 2m
+        labels: { severity: P1, team: platform, page: "true" }
+        annotations:
+          summary: "Raft quorum at risk — {{ $value }} of 5 orderers up"

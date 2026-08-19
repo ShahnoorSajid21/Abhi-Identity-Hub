@@ -1,0 +1,110 @@
+/**
+ * ABHI Identity Hub — design tokens.
+ *
+ * Sampled from the logo. These are the only colour definitions in the app;
+ * FRONTEND_PLAN.md §1.2 forbids a hardcoded hex anywhere else in the codebase.
+ *
+ * The four decision colour sets are reserved. Mint is the bank's own green and
+ * ALLOW borrows it deliberately — which is exactly why mint must never be used
+ * as a decorative accent. The moment it decorates, the room stops reading it
+ * as "good".
+ */
+
+:root {
+  /* Brand — from the logo ground */
+  --abhi-navy-900: #04212b; /* deepest, top-left of the gradient */
+  --abhi-navy-800: #072e3a; /* sidebar background */
+  --abhi-navy-700: #0a3a49; /* sidebar hover, top bar on dark surfaces */
+  --abhi-navy-600: #0c4152; /* bottom-right of the gradient */
+  --abhi-navy-500: #14586d; /* borders on dark, muted dark text */
+
+  /* Brand — from the logo mosaic */
+  --abhi-mint-600: #2fae8b; /* mint, text-safe on white */
+  --abhi-mint-500: #3dc9a3; /* the logo mint */
+  --abhi-mint-300: #8fe3cb;
+  --abhi-mint-100: #e4f7f1; /* tinted backgrounds */
+
+  /* Neutrals */
+  --slate-900: #0f172a;
+  --slate-700: #334155;
+  --slate-500: #64748b;
+  --slate-300: #cbd5e1;
+  --slate-200: #e2e8f0;
+  --slate-100: #f1f5f9;
+  --slate-50: #f8fafc;
+  --white: #ffffff;
+
+  /* Semantic — the four decisions. Used nowhere else. */
+  --ok-bg: #e4f7f1;
+  --ok-fg: #17795e;
+  --ok-line: #2fae8b;
+  --warn-bg: #fef3c7;
+  --warn-fg: #92590a;
+  --warn-line: #f59e0b;
+  --stop-bg: #fee2e2;
+  --stop-fg: #991b1b;
+  --stop-line: #dc2626;
+  --new-bg: #e0f2fe;
+  --new-fg: #075985;
+  --new-line: #0284c7;
+
+  /**
+   * The identity confirmation ladder, as chart colour.
+   *
+   * ORDINAL, not categorical: swapping A1 and A3 would change what the chart
+   * means, so it takes one hue in monotone lightness steps rather than four
+   * separate hues. Validated with the dataviz validator — adjacent steps clear
+   * the normal-vision floor at ΔE 18.7 and CVD separation at 18.4, and the
+   * lightest step holds 2.03:1 on white, which the ordinal rule allows because
+   * every segment carries a direct label.
+   *
+   * A0 sits deliberately OUTSIDE the ramp. "Nobody has checked this person" is
+   * not the first rung of confirmation, it is the absence of any — so it reads
+   * neutral grey, and the green deepens only as real checks accumulate.
+   */
+  --ladder-none: #cbd5e1;
+  --ladder-1: #3dc9a3;
+  --ladder-2: #1e8a6b;
+  --ladder-3: #0b4f3b;
+
+  /* Spacing scale — 4 / 8 / 12 / 16 / 24 / 32 / 48. Nothing else. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* Radii */
+  --radius-control: 6px;
+  --radius-card: 8px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --motion-fast: 150ms;
+  --motion-panel: 250ms;
+  --motion-deliberate: 600ms;
+}
+
+/**
+ * Projector rule: nothing below 12px renders anywhere, body text is 15px.
+ * Respect the viewer's motion preference by dropping to instant rather than
+ * merely shortening — a reduced-motion user gets no animation, not a fast one.
+ */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-panel: 0ms;
+    --motion-deliberate: 0ms;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,236 @@
+# ABHI Unified KYC Ledger — CI
+#
+# Copy to .github/workflows/ci.yml at the repository root.
+#
+# The pipeline is ordered so the cheapest, highest-signal gates fail first.
+# Note that `vectors` runs BEFORE the unit tests: if the cryptographic
+# construction has drifted, every downstream result is meaningless and the
+# build should stop there.
+name: CI
+
+on:
+  push: { branches: [main, develop] }
+  pull_request: { branches: [main, develop] }
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "22.15"
+
+jobs:
+  # ---------------------------------------------------------------- gate 1
+  crypto-vectors:
+    name: Cryptographic reference vectors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: Verify pinned construction
+        run: npm run vectors:verify
+      - name: Fail if vectors were regenerated but not committed
+        run: |
+          npm run vectors:generate
+          if ! git diff --exit-code packages/merkle/vectors/; then
+            echo "::error::Reference vectors changed. A change to hashing, sorting,"
+            echo "::error::padding or domain separation alters every historical root."
+            echo "::error::This is a BREAKING change requiring a new attributeSetId."
+            exit 1
+          fi
+
+  # ---------------------------------------------------------------- gate 1b
+  typecheck:
+    name: Type check
+    needs: crypto-vectors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      # node --experimental-strip-types RUNS TypeScript without CHECKING it.
+      # Without this gate a type error reaches main with every test green.
+      - run: npm run typecheck
+
+  # ---------------------------------------------------------------- gate 2
+  unit:
+    name: Unit tests
+    needs: [crypto-vectors, typecheck]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: Merkle + canonical + policy + chaincode
+        run: npm run test:unit
+
+  # ---------------------------------------------------------------- gate 3
+  security-controls:
+    name: Security control tests
+    needs: crypto-vectors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: PII tripwire, vault AAD, production guards, authority separation
+        run: npm run test:security
+
+  # ---------------------------------------------------------------- gate 4
+  integration-e2e:
+    name: Integration and E2E
+    needs: [unit, security-controls]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - run: npm run test:integration
+      - run: npm run test:e2e
+      - name: Demo walkthrough must complete
+        run: npm run demo:walkthrough
+
+  # ---------------------------------------------------------------- gate 5
+  conformance:
+    name: Architecture conformance audit
+    needs: [unit]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: Every blueprint requirement must map to an implementation
+        run: npm run audit:conformance
+
+  # ---------------------------------------------------------------- gate 6
+  no-secrets:
+    name: Secret and PII scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Reject committed key material
+        run: |
+          if git ls-files | grep -E '\.(pem|key|p12|pfx)$' | grep -v testdata; then
+            echo "::error::Key material must never be committed."
+            exit 1
+          fi
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}" }
+      - name: Reject undeclared CNIC-shaped literals
+        # Marker-based, not path-based. Any file legitimately containing a
+        # fictional CNIC must declare it with FICTIONAL-CNIC-OK. A path
+        # allow-list goes stale silently — an earlier version of this gate
+        # did not scan scripts/ or apps/ at all.
+        run: node scripts/check-cnic-literals.mjs
+      - uses: gitleaks/gitleaks-action@v2
+        env: { GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}" }
+
+  # ---------------------------------------------------------------- gate 7
+  sast-sca:
+    name: SAST and dependency scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: npm audit (high and above blocks)
+        run: npm audit --audit-level=high
+      - name: Semgrep
+        uses: semgrep/semgrep-action@v1
+        with: { config: "p/typescript p/security-audit p/secrets" }
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: fs
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+  # ---------------------------------------------------------------- gate 8
+  build-image:
+    name: Build and scan container
+    needs: [integration-e2e, no-secrets, sast-sca]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build gateway image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile.gateway
+          push: false
+          load: true
+          tags: abhi-kyc-gateway:${{ github.sha }}
+      - name: Scan image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: abhi-kyc-gateway:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          exit-code: "1"
+          ignore-unfixed: true
+
+      # SEC-12 — a signed SBOM plus a signed image. Without provenance, "we
+      # scanned it" says nothing about what actually reached production.
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: abhi-kyc-gateway:${{ github.sha }}
+          format: spdx-json
+          output-file: sbom.spdx.json
+          upload-artifact: true
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: Sign image and attest SBOM (keyless, OIDC)
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign --yes abhi-kyc-gateway:${{ github.sha }}
+          cosign attest --yes --predicate sbom.spdx.json \
+            --type spdxjson abhi-kyc-gateway:${{ github.sha }}
+
+      - name: Verify the signature we just made
+        if: github.ref == 'refs/heads/main'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign verify abhi-kyc-gateway:${{ github.sha }} \
+            --certificate-identity-regexp '.*' \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com
+
+  # ---------------------------------------------------------------- gate 9
+  fabric-network:
+    name: Fabric network smoke test
+    needs: [unit]
+    runs-on: ubuntu-latest
+    # Requires Docker; runs the real 3-org network and the real endorsement
+    # policy. This is the only job that exercises endorsement for real — the
+    # simulator cannot, by construction.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Fabric binaries
+        run: |
+          curl -sSLO https://raw.githubusercontent.com/hyperledger/fabric/main/scripts/install-fabric.sh
+          chmod +x install-fabric.sh
+          ./install-fabric.sh --fabric-version 2.5.9 binary docker
+          echo "$PWD/bin" >> "$GITHUB_PATH"
+      - name: Bring up the network
+        run: bash network/scripts/up.sh
+      - name: Deploy chaincode with the real endorsement policy
+        run: bash network/scripts/deploy-chaincode.sh
+      - name: Assert a single-org write fails
+        run: bash tests/fabric/assert-single-org-write-fails.sh
+      - name: Tear down
+        if: always()
+        run: bash network/scripts/down.sh

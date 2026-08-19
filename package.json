@@ -1,0 +1,46 @@
+{
+  "name": "abhi-kyc-ledger",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ABHI Unified KYC Ledger — permissioned Hyperledger Fabric POC holding proof, not data, of every identity verification ABHI performs.",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "chaincode/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.6"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test --test-reporter=spec \"packages/**/test/*.test.ts\" \"chaincode/**/test/*.test.ts\" \"services/**/test/*.test.ts\" \"tests/**/*.test.ts\"",
+    "test:unit": "node --experimental-strip-types --test \"packages/**/test/*.test.ts\" \"chaincode/**/test/*.test.ts\"",
+    "test:integration": "node --experimental-strip-types --test \"tests/integration/*.test.ts\"",
+    "test:e2e": "node --experimental-strip-types --test \"tests/e2e/*.test.ts\"",
+    "test:security": "node --experimental-strip-types --test \"tests/security/*.test.ts\"",
+    "vectors:generate": "node --experimental-strip-types packages/merkle/scripts/generate-vectors.ts",
+    "vectors:verify": "node --experimental-strip-types --test packages/merkle/test/reference-vectors.test.ts",
+    "gateway:dev": "node --experimental-strip-types services/gateway/src/server.ts",
+    "numbers": "node --experimental-strip-types scripts/numbers.ts",
+    "demo:seed": "node --experimental-strip-types scripts/seed-demo.ts",
+    "demo:walkthrough": "node --experimental-strip-types scripts/demo-walkthrough.ts",
+    "demo:scenario": "node --experimental-strip-types scripts/scenario.ts",
+    "audit:conformance": "node --experimental-strip-types scripts/conformance-audit.ts",
+    "network:up": "bash network/scripts/up.sh",
+    "network:down": "bash network/scripts/down.sh",
+    "network:deploy-cc": "bash network/scripts/deploy-chaincode.sh",
+    "typecheck": "tsc --noEmit",
+    "verify": "npm run typecheck && npm run check:cnic && npm run vectors:verify && npm test && npm run audit:conformance",
+    "check:cnic": "node scripts/check-cnic-literals.mjs"
+  },
+  "devDependencies": {
+    "@grpc/grpc-js": "^1.14.4",
+    "@hyperledger/fabric-gateway": "1.7",
+    "@types/pg": "^8.23.1",
+    "fabric-contract-api": "2.5",
+    "pg": "^8.23.0",
+    "typescript": "5.7"
+  }
+}

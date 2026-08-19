@@ -1,0 +1,385 @@
+<!doctype html>
+<!-- FICTIONAL-CNIC-OK: fictional CNICs prefilled in the demo form. Never real customer data. -->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ABHI Unified KYC Ledger — Console</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#171b21; --line:#252b34; --ink:#e6e9ee; --muted:#8b94a3;
+    --allow:#3fb950; --deny:#f85149; --step:#d29922; --full:#58a6ff; --accent:#7c8cff;
+    font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+  header{padding:16px 24px;border-bottom:1px solid var(--line);display:flex;
+         align-items:baseline;gap:16px;flex-wrap:wrap}
+  header h1{font-size:16px;margin:0;font-weight:600;letter-spacing:.2px}
+  .warn{font-size:12px;color:var(--step);border:1px solid var(--step);
+        padding:2px 8px;border-radius:4px}
+  nav{display:flex;gap:2px;padding:0 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  nav button{background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
+             padding:10px 14px;cursor:pointer;font-size:13px;font-family:inherit}
+  nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+  main{padding:24px;display:grid;gap:16px;max-width:1200px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px}
+  .panel h2{font-size:13px;margin:0 0 12px;text-transform:uppercase;letter-spacing:.6px;
+            color:var(--muted);font-weight:600}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+  label{font-size:12px;color:var(--muted);min-width:110px}
+  input,select{background:#0c0f13;border:1px solid var(--line);color:var(--ink);
+               padding:7px 10px;border-radius:5px;font-family:inherit;font-size:13px;min-width:220px}
+  button.go{background:var(--accent);border:0;color:#0b0d10;padding:8px 16px;border-radius:5px;
+            cursor:pointer;font-weight:600;font-size:13px;font-family:inherit}
+  button.go:hover{opacity:.9}
+  button.danger{background:var(--deny);color:#fff}
+  pre{background:#0c0f13;border:1px solid var(--line);border-radius:6px;padding:12px;
+      overflow-x:auto;font-size:12px;margin:0;
+      font-family:ui-monospace,"Cascadia Code",Consolas,monospace}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+  .stat{background:#0c0f13;border:1px solid var(--line);border-radius:6px;padding:12px}
+  .stat .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+  .stat .k{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+  .badge{display:inline-block;padding:3px 10px;border-radius:4px;font-weight:700;font-size:12px}
+  .ALLOW{background:rgba(63,185,80,.15);color:var(--allow)}
+  .DENY{background:rgba(248,81,73,.15);color:var(--deny)}
+  .STEP_UP{background:rgba(210,153,34,.15);color:var(--step)}
+  .FULL_KYC{background:rgba(88,166,255,.15);color:var(--full)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:7px 10px;border-bottom:1px solid var(--line)}
+  th{color:var(--muted);font-weight:600;text-transform:uppercase;font-size:11px;letter-spacing:.4px}
+  code{font-family:ui-monospace,Consolas,monospace;font-size:12px}
+  .ok{color:var(--allow)} .bad{color:var(--deny)} .mut{color:var(--muted)}
+  .hint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <h1>ABHI Unified KYC Ledger</h1>
+  <span class="warn">POC — simulated ledger · software HSM · mocked rails</span>
+  <span id="health" class="mut" style="margin-left:auto;font-size:12px">connecting…</span>
+</header>
+
+<nav id="tabs">
+  <button data-tab="registry" aria-selected="true">KYC Registry</button>
+  <button data-tab="verify">Verification</button>
+  <button data-tab="consent">Consent</button>
+  <button data-tab="history">History &amp; Audit</button>
+  <button data-tab="employer">Employer Portal</button>
+  <button data-tab="compliance">Compliance</button>
+  <button data-tab="dashboard">Dashboard</button>
+</nav>
+
+<main id="app"></main>
+
+<script type="module">
+const API = location.port === '8080' ? '' : 'http://localhost:8080';
+
+const IDENTITIES = {
+  bank:       { 'x-abhi-msp':'ABHIBankMSP',       'x-abhi-role':'gateway' },
+  lending:    { 'x-abhi-msp':'ABHILendingMSP',    'x-abhi-role':'gateway' },
+  compliance: { 'x-abhi-msp':'ABHIComplianceMSP', 'x-abhi-role':'compliance-officer' },
+};
+
+async function api(method, path, body, who='bank'){
+  const res = await fetch(API + path, {
+    method,
+    headers:{ 'content-type':'application/json', ...IDENTITIES[who] },
+    ...(body ? { body: JSON.stringify(body) } : {}),
+  });
+  return { status: res.status, json: await res.json() };
+}
+
+const el = (h) => { const d=document.createElement('div'); d.innerHTML=h.trim(); return d.firstElementChild; };
+const out = (id, v) => { document.getElementById(id).textContent =
+  typeof v === 'string' ? v : JSON.stringify(v, null, 2); };
+
+const A2 = {
+  address_hash:'486ea46224d1bb4f', biometric_match:true, cnic_expiry:'2031-04-11',
+  cnic_number_hash:'e3b0c44298fc1c14', date_of_birth:'1994-02-17',
+  document_authenticity_pass:true, fatca_status:false,
+  father_or_husband_name_hash:'2c26b46b68ffc68f', full_name_hash:'9f86d081884c7d65',
+  liveness_pass:false, profession:'Machine Operator',
+  purpose_of_account:'Salary disbursement', source_of_funds:'Salary', verisys_match:true,
+};
+const A3 = { ...A2, liveness_pass:true };
+
+const decisionBadge = (d) =>
+  `<span class="badge ${d.outcome}">${d.outcome}</span> <span class="mut">${d.reason}</span>` +
+  (d.missingMethods?.length ? ` <span class="mut">· missing: ${d.missingMethods.join(', ')}</span>` : '');
+
+// ---------------------------------------------------------------- tabs
+const TABS = {
+registry: () => `
+  <div class="panel">
+    <h2>Register a new KYC — the full journey</h2>
+    <div class="row"><label>CNIC</label><input id="r-cnic" value="61101-1234567-8"></div>
+    <div class="row"><label>Origin product</label>
+      <select id="r-prod"><option>WALLET</option><option>EMPLOYER</option><option>PARTNER</option></select></div>
+    <div class="row"><label>Assurance target</label>
+      <select id="r-lvl"><option value="A2">A2 — biometric verified</option>
+      <option value="A3">A3 — biometric + liveness</option></select></div>
+    <div class="row"><label>CNIC expiry</label><input id="r-exp" value="2031-04-11T00:00:00Z"></div>
+    <button class="go" id="r-go">Run full KYC journey</button>
+    <p class="hint">Runs Verisys, document authenticity and biometric against the mocked rails,
+       builds a salted Merkle root, writes the salts to the vault, and commits v1.</p>
+  </div>
+  <div class="panel"><h2>Result</h2><pre id="r-out">—</pre></div>`,
+
+verify: () => `
+  <div class="panel">
+    <h2>Verify — does an existing verification suffice?</h2>
+    <div class="row"><label>CNIC</label><input id="v-cnic" value="61101-1234567-8"></div>
+    <div class="row"><label>Product</label>
+      <select id="v-prod"><option>EWA</option><option>ASA</option><option>SBL</option>
+      <option>MERCHANT_FINANCING</option><option>EMPLOYER_BULK</option></select></div>
+    <div class="row"><label>Consent ID</label><input id="v-consent" placeholder="optional — required for a proof"></div>
+    <button class="go" id="v-go">VerifyKYC</button>
+    <button class="go" id="v-step" style="background:var(--step)">Run step-up</button>
+    <div id="v-badge" style="margin-top:14px"></div>
+  </div>
+  <div class="panel"><h2>Decision</h2><pre id="v-out">—</pre></div>
+  <div class="panel"><h2>Selective disclosure proof</h2><pre id="v-proof">—</pre></div>`,
+
+consent: () => `
+  <div class="panel">
+    <h2>Grant consent</h2>
+    <div class="row"><label>CNIC</label><input id="c-cnic" value="61101-1234567-8"></div>
+    <div class="row"><label>Granted to</label>
+      <select id="c-to"><option>ABHILendingMSP</option><option>ABHIBankMSP</option></select></div>
+    <div class="row"><label>Purpose</label><input id="c-purpose" value="EWA_ORIGINATION"></div>
+    <div class="row"><label>Scope</label>
+      <input id="c-scope" value="verisys_match,biometric_match,cnic_expiry,fatca_status" style="min-width:420px"></div>
+    <div class="row"><label>Expires</label><input id="c-exp" value="2027-01-01T00:00:00Z"></div>
+    <button class="go" id="c-go">Record consent</button>
+    <p class="hint">No wildcard scope. Expiry is mandatory and capped at 730 days.
+       The narrowest of request, consent and product policy always wins.</p>
+  </div>
+  <div class="panel">
+    <h2>Revoke</h2>
+    <div class="row"><label>Consent ID</label><input id="cr-id" style="min-width:340px"></div>
+    <div class="row"><label>Reason</label><input id="cr-reason" value="customer withdrew"></div>
+    <button class="go danger" id="cr-go">Revoke consent</button>
+  </div>
+  <div class="panel"><h2>Result</h2><pre id="c-out">—</pre></div>`,
+
+history: () => `
+  <div class="panel">
+    <h2>Version chain &amp; integrity</h2>
+    <div class="row"><label>CNIC</label><input id="h-cnic" value="61101-1234567-8">
+      <button class="go" id="h-go">Load</button></div>
+    <div id="h-status"></div>
+    <table id="h-table"><thead><tr><th>v</th><th>Status</th><th>Assurance</th>
+      <th>Methods</th><th>Verified</th><th>prevHash</th></tr></thead><tbody></tbody></table>
+    <p class="hint">The chain is verified from record state alone — no peer access and no
+       understanding of Fabric internals required. An inspector should not have to trust
+       the blockchain to verify the history.</p>
+  </div>
+  <div class="panel"><h2>Audit trail</h2><pre id="h-audit">—</pre></div>`,
+
+employer: () => `
+  <div class="panel">
+    <h2>Bulk employee upload</h2>
+    <div class="row"><label>CNICs</label>
+      <input id="e-list" style="min-width:520px"
+             value="6110112345678,4220176543211,3520211223345,not-a-cnic"></div>
+    <button class="go" id="e-go">Check eligibility</button>
+    <p class="hint">Note the CSV strips dashes while the app captures them. Shared
+       normalisation is what makes both resolve to one subject.</p>
+    <div class="grid" style="margin-top:14px" id="e-stats"></div>
+  </div>
+  <div class="panel"><h2>Split</h2><pre id="e-out">—</pre></div>`,
+
+compliance: () => `
+  <div class="panel">
+    <h2>Suspend / reinstate — Compliance authority</h2>
+    <div class="row"><label>CNIC</label><input id="s-cnic" value="61101-1234567-8"></div>
+    <div class="row"><label>Reason</label><input id="s-reason" value="AML alert"></div>
+    <div class="row"><label>Case reference</label><input id="s-ref" value="CASE-2026-114"></div>
+    <div class="row"><label>Acting as</label>
+      <select id="s-who"><option value="compliance">ABHIComplianceMSP (officer)</option>
+      <option value="lending">ABHILendingMSP (product org)</option></select></div>
+    <button class="go danger" id="s-go">Suspend</button>
+    <button class="go" id="s-re">Reinstate</button>
+    <p class="hint">Try suspending as a product organization: the call is rejected before it
+       reaches the ledger, and the attempt is recorded.</p>
+  </div>
+  <div class="panel">
+    <h2>Crypto-shred (erasure)</h2>
+    <div class="row"><label>CNIC</label><input id="x-cnic" value="61101-1234567-8"></div>
+    <div class="row"><label>Legal basis</label><input id="x-basis" value="PDPB right to erasure"></div>
+    <button class="go danger" id="x-go">Destroy vault data</button>
+    <p class="hint">Destroys ciphertext, DEK and salts. The 32-byte root remains; the audit
+       fact that a verification occurred survives.</p>
+  </div>
+  <div class="panel"><h2>Result</h2><pre id="s-out">—</pre></div>`,
+
+dashboard: () => `
+  <div class="panel"><h2>Cost instrumentation</h2>
+    <div class="grid" id="d-stats"></div>
+    <p class="hint">The reuse rate here is from this session, not from ABHI traffic. The real
+       number comes from the Sprint 0 duplication analysis over historical verification logs —
+       that number, not this one, decides whether the production programme is worth funding.</p>
+  </div>
+  <div class="panel"><h2>Product policies</h2><pre id="d-pol">—</pre></div>
+  <div class="panel"><h2>Raw metrics</h2><pre id="d-out">—</pre></div>`,
+};
+
+// ---------------------------------------------------------------- wiring
+const WIRE = {
+  registry(){
+    document.getElementById('r-go').onclick = async () => {
+      const lvl = document.getElementById('r-lvl').value;
+      const r = await api('POST','/kyc/register',{
+        cnic: document.getElementById('r-cnic').value,
+        attributes: lvl === 'A3' ? A3 : A2,
+        originProduct: document.getElementById('r-prod').value,
+        cnicExpiryAt: document.getElementById('r-exp').value,
+      });
+      out('r-out', r.json);
+    };
+  },
+  verify(){
+    document.getElementById('v-go').onclick = async () => {
+      const consentId = document.getElementById('v-consent').value.trim();
+      const r = await api('POST','/kyc/verify',{
+        cnic: document.getElementById('v-cnic').value,
+        productId: document.getElementById('v-prod').value,
+        ...(consentId ? { consentId } : {}),
+      },'lending');
+      if (r.json.decision) {
+        document.getElementById('v-badge').innerHTML = decisionBadge(r.json.decision);
+        out('v-proof', r.json.proof ?? 'no proof — supply a consent ID');
+        const { proof, ...rest } = r.json;
+        out('v-out', rest);
+      } else { document.getElementById('v-badge').innerHTML=''; out('v-out', r.json); }
+    };
+    document.getElementById('v-step').onclick = async () => {
+      const r = await api('POST','/kyc/update',{
+        cnic: document.getElementById('v-cnic').value,
+        productId: document.getElementById('v-prod').value,
+        attributes: A3, cnicExpiryAt:'2031-04-11T00:00:00Z', reason:'step-up from console',
+      },'lending');
+      out('v-out', r.json);
+    };
+  },
+  consent(){
+    document.getElementById('c-go').onclick = async () => {
+      const r = await api('POST','/consent/create',{
+        cnic: document.getElementById('c-cnic').value,
+        grantedTo: document.getElementById('c-to').value,
+        purpose: document.getElementById('c-purpose').value,
+        scope: document.getElementById('c-scope').value.split(',').map(s=>s.trim()).filter(Boolean),
+        expiresAt: document.getElementById('c-exp').value,
+        evidenceRef: 'tc-accept-console-001',
+      });
+      out('c-out', r.json);
+      if (r.json.consentId) document.getElementById('cr-id').value = r.json.consentId;
+    };
+    document.getElementById('cr-go').onclick = async () => {
+      const r = await api('POST','/consent/revoke',{
+        cnic: document.getElementById('c-cnic').value,
+        grantedTo: document.getElementById('c-to').value,
+        consentId: document.getElementById('cr-id').value,
+        reason: document.getElementById('cr-reason').value,
+      });
+      out('c-out', r.json);
+    };
+  },
+  history(){
+    document.getElementById('h-go').onclick = async () => {
+      const cnic = encodeURIComponent(document.getElementById('h-cnic').value);
+      const r = await api('GET', `/kyc/history?cnic=${cnic}`);
+      const tb = document.querySelector('#h-table tbody'); tb.innerHTML='';
+      if (r.json.versions) {
+        document.getElementById('h-status').innerHTML =
+          `chain integrity: <b class="${r.json.chainValid?'ok':'bad'}">` +
+          `${r.json.chainValid?'VALID':'BROKEN at v'+r.json.brokenAt}</b> · ` +
+          `${r.json.versionCount} version(s)`;
+        for (const v of r.json.versions) {
+          tb.appendChild(el(`<tr><td>${v.version}</td><td>${v.status}</td>
+            <td>${v.assuranceLevel}</td><td>${v.methods.join(', ')}</td>
+            <td>${v.verifiedAt}</td>
+            <td><code>${v.previousVersionHash ? v.previousVersionHash.slice(0,16)+'…' : 'null'}</code></td></tr>`));
+        }
+      } else { document.getElementById('h-status').textContent = JSON.stringify(r.json); }
+      const a = await api('GET', `/audit/events?cnic=${cnic}`);
+      out('h-audit', a.json.events ?? a.json);
+    };
+  },
+  employer(){
+    document.getElementById('e-go').onclick = async () => {
+      const r = await api('POST','/employer/bulk-lookup',{
+        cnics: document.getElementById('e-list').value.split(',').map(s=>s.trim()).filter(Boolean),
+      });
+      out('e-out', r.json);
+      const s = r.json;
+      document.getElementById('e-stats').innerHTML = s.total === undefined ? '' : `
+        <div class="stat"><div class="v">${s.total}</div><div class="k">Uploaded</div></div>
+        <div class="stat"><div class="v ok">${s.activateNow.length}</div><div class="k">Activate now</div></div>
+        <div class="stat"><div class="v">${s.needsOnboarding.length}</div><div class="k">Needs onboarding</div></div>
+        <div class="stat"><div class="v bad">${s.invalid.length}</div><div class="k">Invalid rows</div></div>`;
+    };
+  },
+  compliance(){
+    const body = () => ({
+      cnic: document.getElementById('s-cnic').value,
+      reason: document.getElementById('s-reason').value,
+      referenceId: document.getElementById('s-ref').value,
+    });
+    document.getElementById('s-go').onclick = async () =>
+      out('s-out', (await api('POST','/kyc/suspend', body(), document.getElementById('s-who').value)).json);
+    document.getElementById('s-re').onclick = async () =>
+      out('s-out', (await api('POST','/kyc/reinstate', {...body(), reason:'investigation closed'},
+        document.getElementById('s-who').value)).json);
+    document.getElementById('x-go').onclick = async () =>
+      out('s-out', (await api('POST','/kyc/shred',{
+        cnic: document.getElementById('x-cnic').value,
+        reason:'customer erasure request',
+        legalBasis: document.getElementById('x-basis').value,
+      },'compliance')).json);
+  },
+  async dashboard(){
+    const m = (await api('GET','/metrics')).json;
+    const total = m.rails.callsMade + m.rails.callsAvoided;
+    const rate = total ? ((m.rails.callsAvoided/total)*100).toFixed(1) : '0.0';
+    document.getElementById('d-stats').innerHTML = `
+      <div class="stat"><div class="v">${m.rails.callsMade}</div><div class="k">Rail calls made</div></div>
+      <div class="stat"><div class="v ok">${m.rails.callsAvoided}</div><div class="k">Rail calls avoided</div></div>
+      <div class="stat"><div class="v">PKR ${m.rails.costSpentPkr}</div><div class="k">Cost incurred</div></div>
+      <div class="stat"><div class="v ok">PKR ${m.rails.costAvoidedPkr}</div><div class="k">Cost avoided</div></div>
+      <div class="stat"><div class="v">${rate}%</div><div class="k">Reuse rate (session)</div></div>
+      <div class="stat"><div class="v">${m.ecibCalls}</div><div class="k">e-CIB calls (never avoided)</div></div>
+      <div class="stat"><div class="v">${m.rails.capLockouts}</div><div class="k">Biometric lockouts</div></div>
+      <div class="stat"><div class="v">${m.vaultDecrypts}</div><div class="k">Vault decrypts</div></div>`;
+    out('d-out', m);
+    out('d-pol', (await api('GET','/policies')).json);
+  },
+};
+
+function show(tab){
+  document.querySelectorAll('#tabs button').forEach(b =>
+    b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+  document.getElementById('app').innerHTML = TABS[tab]();
+  WIRE[tab]?.();
+}
+
+document.getElementById('tabs').onclick = (e) => {
+  if (e.target.dataset.tab) show(e.target.dataset.tab);
+};
+
+(async () => {
+  try {
+    const h = await api('GET','/health');
+    document.getElementById('health').textContent =
+      `gateway ok · ledger: ${h.json.ledger}`;
+  } catch {
+    document.getElementById('health').innerHTML =
+      '<span class="bad">gateway unreachable — run: npm run gateway:dev</span>';
+  }
+  show('registry');
+})();
+</script>
+</body>
+</html>

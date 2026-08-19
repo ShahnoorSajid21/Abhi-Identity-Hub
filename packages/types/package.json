@@ -1,0 +1,9 @@
+{
+  "name": "@abhi/types",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared domain types, enums, error codes and validators for the ABHI Unified KYC Ledger.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}

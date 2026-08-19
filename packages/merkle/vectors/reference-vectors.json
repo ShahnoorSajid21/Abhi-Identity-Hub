@@ -1,0 +1,124 @@
+{
+  "_comment": "FICTIONAL-CNIC-OK: the CNIC below is invented. DEMONSTRATION VECTORS. Salts and pepper are derived deterministically from published seeds (ABHI-KYC-DEMO-PEPPER-v1 / ABHI-KYC-DEMO-SALT-v1) so this worked example is reproducible by any reviewer from the algorithm alone. NEVER use these constants outside a demo.",
+  "generatedBy": "packages/merkle/scripts/generate-vectors.ts",
+  "attributeSetId": "ABHI-KYC-ATTRS-v1",
+  "demoPepperSeed": "ABHI-KYC-DEMO-PEPPER-v1",
+  "demoSaltSeed": "ABHI-KYC-DEMO-SALT-v1",
+  "demoPepper": "4f87c46df677f20607d10bd4f6966b5c8304eb1f4981890526083dc1c287020a",
+  "cnic": "61101-1234567-8",
+  "cnicNormalised": "6110112345678",
+  "subjectId": "9153bd139c8d0b31cc8b36090db5a7630a6c7739964ac03729aa92d776600b25",
+  "merkleRoot": "0ed0d485d5afaf321cb1e5f058d9dcbbc486c411ed1d1af7c93317e57f7c9c44",
+  "leafCount": 14,
+  "leaves": [
+    {
+      "attribute": "address_hash",
+      "canonical": "s:486ea46224d1bb4f",
+      "salt": "7850ab7a487618e3b6069dde373c025511c5415e1976d72ca669c2f42f1a7b13",
+      "leaf": "1221566a091b18ae46e10a98e1928679524aa1ccf67b4982a541741a174d4029"
+    },
+    {
+      "attribute": "biometric_match",
+      "canonical": "b:1",
+      "salt": "e218a41f6ed1f81f2070d89ac4854c48cc8d14480e8632fa5b3af9ea9fcc5cf2",
+      "leaf": "b35528a1a057e4388ae09be3e2f482887440e82dcb424712d536bc4c59674841"
+    },
+    {
+      "attribute": "cnic_expiry",
+      "canonical": "s:2031-04-11",
+      "salt": "0594701ee36565a4c7567917a667d9c8e3fd0b96f3fd23ecbdb1fccc32da9217",
+      "leaf": "972a2baa2fbfc32f011d48960814054777366603b68e103412a8927ae6b75ae3"
+    },
+    {
+      "attribute": "cnic_number_hash",
+      "canonical": "s:e3b0c44298fc1c14",
+      "salt": "d9ce38e187f888f04bc019cbb80b98be98643878a37804e99da1fb87edc60d47",
+      "leaf": "09de11e7170dd3e1054f54693b86ffa6ef06b4a4d9bd78a0930365ba31865b33"
+    },
+    {
+      "attribute": "date_of_birth",
+      "canonical": "s:1994-02-17",
+      "salt": "5aa494febf6ac65e90fb004fff1183a338abc838d8bfdbc169dbf1251de07290",
+      "leaf": "29607da6a0d479ccaa6fd4ad2c9b971e64513d1c419b09d17a173d02f4b630e9"
+    },
+    {
+      "attribute": "document_authenticity_pass",
+      "canonical": "b:1",
+      "salt": "0e628488dd453672b0f58bbc5c43860a2ef7a752e4942cafef57bb18cf68e6bf",
+      "leaf": "2bfde81d76c3387986e70f85c9af97ec61545fd8a76fb5587f6059b717da9545"
+    },
+    {
+      "attribute": "fatca_status",
+      "canonical": "b:0",
+      "salt": "d7168216e5e490d462e8d00ebcee1f1f509b188640bf1a186c9a5afd8843d77d",
+      "leaf": "822dc35cecd85f2711275c970ea9a517ccb230aa7e5fab9a5d91e2bb1aa77baf"
+    },
+    {
+      "attribute": "father_or_husband_name_hash",
+      "canonical": "s:2c26b46b68ffc68f",
+      "salt": "cf22d2b8a57b5cd28d5ea9f89da991916ca754b292eeed2a49e0179316626f56",
+      "leaf": "24de0a0b7809675aadf684fefb2bbf8f4ac7bb391b1fdc5c9b67d15d22621bd0"
+    },
+    {
+      "attribute": "full_name_hash",
+      "canonical": "s:9f86d081884c7d65",
+      "salt": "bfa75709ed478295de00d975e49812ef80191374eae4d526e8addd6526aa7022",
+      "leaf": "30def5ed2781d974dd4bc1949323df41eda2fe8664b565c5a8251e4578f97691"
+    },
+    {
+      "attribute": "liveness_pass",
+      "canonical": "b:0",
+      "salt": "40cc647d96081c83c8c48c75486f9109ce922adeef3dcd3c095209c51927a03f",
+      "leaf": "42a080f86c44db12375031af8b077f8364a1d779305b2617f669b45c92e6d6f1"
+    },
+    {
+      "attribute": "profession",
+      "canonical": "s:Machine Operator",
+      "salt": "b931d4315745fc7c0099b13f29f0293f7ab1630172755c27e8de47b0b7d21fef",
+      "leaf": "dfa4fd090179e73884e7a6f529b55c52171b10fcf962fd2af0db43f7ce5c64b8"
+    },
+    {
+      "attribute": "purpose_of_account",
+      "canonical": "s:Salary disbursement",
+      "salt": "f3d17b011ca7e0e9fb613831927aceb3dd5c9123cc79050326df9498fce64654",
+      "leaf": "536a6028d9b47cf3f16e553aafd7a8fcf62cb2d6f3f463898630c93bc5041f9a"
+    },
+    {
+      "attribute": "source_of_funds",
+      "canonical": "s:Salary",
+      "salt": "3ab813cf66de229e3fcd73ffae7b7205e42241372176cfb4c8cc8338b23291a6",
+      "leaf": "840ba6bbd9d506bf9463aa614b5611c3653bd98089092a8f58006bee8028bcdf"
+    },
+    {
+      "attribute": "verisys_match",
+      "canonical": "b:1",
+      "salt": "7ae0d20f10856a924e63ca1cc2be2e9c882b0d59f9fa3b04c242bb094da65eb9",
+      "leaf": "57d7d83f384b9c814376f511770145c3682d963ed47b5131038434623031e9dd"
+    }
+  ],
+  "ewaDisclosure": {
+    "disclosed": [
+      "verisys_match",
+      "biometric_match",
+      "cnic_expiry",
+      "fatca_status"
+    ],
+    "pathLengths": {
+      "verisys_match": 3,
+      "biometric_match": 4,
+      "cnic_expiry": 4,
+      "fatca_status": 4
+    },
+    "withheldValuesAbsentFromBundle": {
+      "Machine Operator": false,
+      "Salary disbursement": false,
+      "1994-02-17": false,
+      "486ea46224d1bb4f": false
+    }
+  },
+  "chainLink": {
+    "description": "SHA-256 of the v1 record marked SUPERSEDED and hashed AS STORED.",
+    "v1RecordCanonical": "{\"assuranceLevel\":\"A2\",\"attributeSetId\":\"ABHI-KYC-ATTRS-v1\",\"cnicExpiryAt\":\"2031-04-11T00:00:00Z\",\"createdTxId\":\"demo-tx-v1\",\"docType\":\"KYCRecord\",\"expiresAt\":\"2027-03-11T09:14:22Z\",\"merkleRoot\":\"0ed0d485d5afaf321cb1e5f058d9dcbbc486c411ed1d1af7c93317e57f7c9c44\",\"methods\":[\"BIOMETRIC_1TO1\",\"DOC_AUTH\",\"VERISYS\"],\"originProduct\":\"WALLET\",\"pepperEpoch\":1,\"previousVersionHash\":null,\"schemaVersion\":1,\"status\":\"SUPERSEDED\",\"statusReason\":null,\"subjectId\":\"9153bd139c8d0b31cc8b36090db5a7630a6c7739964ac03729aa92d776600b25\",\"vaultRef\":\"3f2504e0-4f89-41d3-9a0c-0305e82c3301\",\"verifiedAt\":\"2026-03-11T09:14:22Z\",\"verifiedBy\":\"ABHIBankMSP\",\"version\":1}",
+    "previousVersionHash": "b60d46d441c0dd20374bfcbe82e68c34746e6abfa1ca0fda169e61b3295069d8"
+  }
+}

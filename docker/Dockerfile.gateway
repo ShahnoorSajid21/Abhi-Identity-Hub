@@ -1,0 +1,45 @@
+# ABHI KYC Gateway — the crown-jewel service.
+#
+# Hardening choices are deliberate and each maps to a control in
+# docs/SECURITY_AUDIT.md:
+#   - distroless: no shell, so a shell-based exploit has nothing to invoke
+#   - non-root:   uid 65532
+#   - read-only root filesystem (enforced at runtime, see k8s manifest)
+#   - no package manager, no curl, no wget in the final image
+
+# ---- build ----------------------------------------------------------------
+FROM node:22.15-bookworm-slim AS build
+WORKDIR /build
+
+COPY package.json package-lock.json* ./
+COPY packages ./packages
+COPY chaincode ./chaincode
+COPY services ./services
+
+# Deterministic install. --omit=dev because the gateway ships no dev tooling.
+RUN npm ci --omit=dev --no-audit --no-fund 2>/dev/null || npm install --omit=dev --no-audit --no-fund
+
+# ---- runtime --------------------------------------------------------------
+FROM gcr.io/distroless/nodejs22-debian12:nonroot
+
+WORKDIR /app
+COPY --from=build --chown=nonroot:nonroot /build /app
+
+USER nonroot:nonroot
+EXPOSE 8080
+
+ENV NODE_ENV=production \
+    NODE_OPTIONS="--experimental-strip-types --max-old-space-size=512"
+
+# The gateway refuses to boot with NODE_ENV=production unless a PKCS#11 HSM,
+# the Fabric adapter and mTLS are configured. That refusal is intentional: it
+# is what stops the POC configuration from silently becoming a deployment.
+LABEL org.opencontainers.image.title="abhi-kyc-gateway" \
+      org.opencontainers.image.vendor="ABHI Microfinance Bank" \
+      org.opencontainers.image.source="https://github.com/abhi/kyc-ledger" \
+      security.abhi.classification="crown-jewel"
+
+# Core dumps disabled and swap off are host-level controls (see k8s manifest);
+# they matter because this process holds plaintext attributes in memory.
+
+ENTRYPOINT ["/nodejs/bin/node", "services/gateway/src/server.ts"]

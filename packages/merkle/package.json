@@ -1,0 +1,9 @@
+{
+  "name": "@abhi/merkle",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Salted, domain-separated Merkle tree over the KYC attribute set. Selective disclosure and subject-ID derivation.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}

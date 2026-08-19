@@ -1,0 +1,31 @@
+export { KEY, type StateStore, type TxContext } from './state.ts';
+export { MemoryStateStore, memoryContext, type CapturedEvent } from './memory-state.ts';
+export { guard, requireNonEmpty, MAX_PAYLOAD_BYTES, type GuardSpec } from './guards.ts';
+export {
+  SCHEMA_VERSION,
+  MAX_CONSENT_DAYS,
+  hashRecordAsStored,
+  registerKYC,
+  verifyKYC,
+  updateKYC,
+  suspendKYC,
+  reinstateKYC,
+  recordConsent,
+  revokeConsent,
+  markShredded,
+  getVersionChain,
+  generateProof,
+  verifyProof,
+  recordVerificationEvent,
+  getAuditTrail,
+  type RegisterKYCInput,
+  type RegisterKYCResult,
+  type VerifyKYCResult,
+  type UpdateKYCInput,
+  type UpdateKYCResult,
+  type StatusChangeResult,
+  type RecordConsentInput,
+  type VersionChainResult,
+  type GenerateProofResult,
+  type VerifyProofResult,
+} from './registry.ts';

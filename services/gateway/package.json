@@ -1,0 +1,11 @@
+{
+  "name": "@abhi/gateway",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "KYC Gateway — policy engine, proof assembly, consent, vault, rail orchestration, audit.",
+  "main": "src/server.ts",
+  "scripts": {
+    "start": "node --experimental-strip-types src/server.ts"
+  }
+}

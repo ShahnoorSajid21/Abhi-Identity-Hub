@@ -1,0 +1,14 @@
+{
+  "name": "@abhi/kyc-registry",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "kyc-registry chaincode — record structure, version chaining, status transitions, consent, endorsement enforcement.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "fabric": {
+    "endorsementPolicy": "AND('ABHIComplianceMSP.peer', OR('ABHIBankMSP.peer','ABHILendingMSP.peer'))",
+    "channel": "kyc-channel",
+    "stateDb": "CouchDB"
+  }
+}

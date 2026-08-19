@@ -1,0 +1,43 @@
+# Crypto material generation for the POC ONLY.
+#
+# cryptogen is a development tool. It generates all private keys in one place,
+# which is precisely what production must not do: production uses Fabric CA per
+# organization with an offline root, HSM-backed intermediates, and keys that are
+# generated inside the HSM and never exported.
+#
+# Using cryptogen output above a development environment is a control failure.
+# See docs/SECURITY_AUDIT.md finding SEC-03.
+---
+OrdererOrgs:
+  - Name: Orderer
+    Domain: abhi.local
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer0
+      - Hostname: orderer1
+      - Hostname: orderer2
+
+PeerOrgs:
+  - Name: ABHIBank
+    Domain: bank.abhi.local
+    EnableNodeOUs: true
+    Template:
+      Count: 1        # production: 2 peers across >=2 availability zones
+    Users:
+      Count: 1        # the gateway client identity
+
+  - Name: ABHILending
+    Domain: lending.abhi.local
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: ABHICompliance
+    Domain: compliance.abhi.local
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 2        # gateway client + a named compliance officer

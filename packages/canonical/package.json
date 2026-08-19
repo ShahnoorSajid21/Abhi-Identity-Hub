@@ -1,0 +1,9 @@
+{
+  "name": "@abhi/canonical",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic JSON serialisation and type-tagged canonical value encoding. Shared by chaincode and gateway so hashes agree byte-for-byte.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}

@@ -1,0 +1,163 @@
+# KYC Gateway — production deployment.
+#
+# The gateway sees plaintext attributes in transit and is the most attractive
+# target in the system. Every setting below is a containment control.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: abhi-kyc
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/audit: restricted
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyc-gateway
+  namespace: abhi-kyc
+spec:
+  replicas: 3                      # stateless; N-1 tolerance
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxUnavailable: 0, maxSurge: 1 }
+  selector:
+    matchLabels: { app: kyc-gateway }
+  template:
+    metadata:
+      labels: { app: kyc-gateway }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+    spec:
+      serviceAccountName: kyc-gateway
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile: { type: RuntimeDefault }
+      # Gateway nodes run NOTHING ELSE. No shared tenancy with product services.
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - { key: app, operator: NotIn, values: [kyc-gateway] }
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: gateway
+          image: registry.abhi.local/abhi-kyc-gateway:1.0.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - { name: http, containerPort: 8080 }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          env:
+            - { name: NODE_ENV, value: "production" }
+            - { name: PORT, value: "8080" }
+            # Presence of PKCS11_LIB is what allows a production boot at all.
+            - { name: PKCS11_LIB, value: "/opt/hsm/libCryptoki2_64.so" }
+            - name: PKCS11_PIN
+              valueFrom:
+                secretKeyRef: { name: hsm-credentials, key: pin }
+            - name: VAULT_DSN
+              valueFrom:
+                secretKeyRef: { name: vault-db-credentials, key: dsn }
+            - { name: FABRIC_CHANNEL, value: "kyc-channel" }
+            - { name: FABRIC_CHAINCODE, value: "kyc-registry" }
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "2000m", memory: "1Gi" }
+          livenessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          readinessProbe:
+            httpGet: { path: /health, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+            - { name: fabric-identity, mountPath: /etc/fabric, readOnly: true }
+            - { name: hsm-lib, mountPath: /opt/hsm, readOnly: true }
+      volumes:
+        - name: tmp
+          emptyDir: { medium: Memory, sizeLimit: 64Mi }   # never to disk
+        - name: fabric-identity
+          secret: { secretName: fabric-gateway-identity, defaultMode: 0400 }
+        - name: hsm-lib
+          configMap: { name: hsm-client-library }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kyc-gateway
+  namespace: abhi-kyc
+spec:
+  selector: { app: kyc-gateway }
+  ports:
+    - { name: http, port: 443, targetPort: http }
+---
+# Default-deny egress. The gateway may reach only the peers, the vault, the HSM
+# and the verification rails — nothing else. This is what turns "unexpected
+# egress" into a detectable event rather than normal traffic.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: kyc-gateway-egress
+  namespace: abhi-kyc
+spec:
+  podSelector:
+    matchLabels: { app: kyc-gateway }
+  policyTypes: [Egress, Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { name: abhi-products }
+      ports:
+        - { protocol: TCP, port: 8080 }
+  egress:
+    - to:
+        - podSelector:
+            matchLabels: { app: fabric-peer }
+      ports:
+        - { protocol: TCP, port: 7051 }
+    - to:
+        - podSelector:
+            matchLabels: { app: vault-db }
+      ports:
+        - { protocol: TCP, port: 5432 }
+    - to:
+        - ipBlock: { cidr: 10.50.0.0/24 }     # HSM appliances
+      ports:
+        - { protocol: TCP, port: 1792 }
+    - to:
+        - ipBlock: { cidr: 10.60.0.0/24 }     # NADRA / e-CIB egress proxy
+      ports:
+        - { protocol: TCP, port: 443 }
+    # DNS
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels: { k8s-app: kube-dns }
+      ports:
+        - { protocol: UDP, port: 53 }
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kyc-gateway
+  namespace: abhi-kyc
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels: { app: kyc-gateway }
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kyc-gateway
+  namespace: abhi-kyc

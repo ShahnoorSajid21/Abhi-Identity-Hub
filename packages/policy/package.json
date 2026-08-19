@@ -1,0 +1,9 @@
+{
+  "name": "@abhi/policy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Product policy definitions and the deterministic KYC sufficiency decision engine.",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" }
+}

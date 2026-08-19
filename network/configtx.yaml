@@ -1,0 +1,174 @@
+# ABHI Unified KYC Ledger — channel configuration
+#
+# Three organizations, one channel. The endorsement policy in the Application
+# profile is the single most important line in this repository: it is what makes
+# "no unilateral write" a property of the network rather than a promise made by
+# application code.
+---
+Organizations:
+  - &OrdererOrg
+    Name: OrdererOrg
+    ID: OrdererMSP
+    MSPDir: ../organizations/ordererOrganizations/abhi.local/msp
+    Policies:
+      Readers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+      Writers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
+      Admins:  { Type: Signature, Rule: "OR('OrdererMSP.admin')" }
+    OrdererEndpoints:
+      - orderer0.abhi.local:7050
+      - orderer1.abhi.local:8050
+      - orderer2.abhi.local:9050
+
+  - &ABHIBank
+    Name: ABHIBankMSP
+    ID: ABHIBankMSP
+    MSPDir: ../organizations/peerOrganizations/bank.abhi.local/msp
+    Policies:
+      Readers:     { Type: Signature, Rule: "OR('ABHIBankMSP.admin','ABHIBankMSP.peer','ABHIBankMSP.client')" }
+      Writers:     { Type: Signature, Rule: "OR('ABHIBankMSP.admin','ABHIBankMSP.client')" }
+      Admins:      { Type: Signature, Rule: "OR('ABHIBankMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('ABHIBankMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.bank.abhi.local
+        Port: 7051
+
+  - &ABHILending
+    Name: ABHILendingMSP
+    ID: ABHILendingMSP
+    MSPDir: ../organizations/peerOrganizations/lending.abhi.local/msp
+    Policies:
+      Readers:     { Type: Signature, Rule: "OR('ABHILendingMSP.admin','ABHILendingMSP.peer','ABHILendingMSP.client')" }
+      Writers:     { Type: Signature, Rule: "OR('ABHILendingMSP.admin','ABHILendingMSP.client')" }
+      Admins:      { Type: Signature, Rule: "OR('ABHILendingMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('ABHILendingMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.lending.abhi.local
+        Port: 8051
+
+  - &ABHICompliance
+    Name: ABHIComplianceMSP
+    ID: ABHIComplianceMSP
+    MSPDir: ../organizations/peerOrganizations/compliance.abhi.local/msp
+    Policies:
+      Readers:     { Type: Signature, Rule: "OR('ABHIComplianceMSP.admin','ABHIComplianceMSP.peer','ABHIComplianceMSP.client')" }
+      Writers:     { Type: Signature, Rule: "OR('ABHIComplianceMSP.admin','ABHIComplianceMSP.client')" }
+      Admins:      { Type: Signature, Rule: "OR('ABHIComplianceMSP.admin')" }
+      Endorsement: { Type: Signature, Rule: "OR('ABHIComplianceMSP.peer')" }
+    AnchorPeers:
+      - Host: peer0.compliance.abhi.local
+        Port: 9051
+
+Capabilities:
+  Channel: &ChannelCapabilities { V2_0: true }
+  Orderer: &OrdererCapabilities { V2_0: true }
+  Application: &ApplicationCapabilities { V2_5: true }
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:              { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers:              { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:               { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    LifecycleEndorsement: { Type: ImplicitMeta, Rule: "ALL Endorsement" }
+    Endorsement:          { Type: ImplicitMeta, Rule: "MAJORITY Endorsement" }
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+# LifecycleEndorsement is ALL, not MAJORITY, deliberately: a chaincode upgrade
+# changes the rules governing every KYC record in the bank, so all three
+# organizations must approve it. MAJORITY would let Bank + Lending upgrade the
+# chaincode without Compliance, which would defeat the entire governance model
+# at the one moment it matters most.
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  Addresses:
+    - orderer0.abhi.local:7050
+    - orderer1.abhi.local:8050
+    - orderer2.abhi.local:9050
+  EtcdRaft:
+    Consenters:
+      - Host: orderer0.abhi.local
+        Port: 7050
+        ClientTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer0.abhi.local/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer0.abhi.local/tls/server.crt
+      - Host: orderer1.abhi.local
+        Port: 8050
+        ClientTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer1.abhi.local/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer1.abhi.local/tls/server.crt
+      - Host: orderer2.abhi.local
+        Port: 9050
+        ClientTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer2.abhi.local/tls/server.crt
+        ServerTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer2.abhi.local/tls/server.crt
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 99 MB
+    PreferredMaxBytes: 512 KB
+  Organizations:
+  Policies:
+    Readers:         { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers:         { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:          { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+    BlockValidation: { Type: ImplicitMeta, Rule: "ANY Writers" }
+  Capabilities:
+    <<: *OrdererCapabilities
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers: { Type: ImplicitMeta, Rule: "ANY Readers" }
+    Writers: { Type: ImplicitMeta, Rule: "ANY Writers" }
+    Admins:  { Type: ImplicitMeta, Rule: "MAJORITY Admins" }
+  Capabilities:
+    <<: *ChannelCapabilities
+
+Profiles:
+  # Genesis block for the ordering service.
+  ABHIOrdererGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+      Capabilities:
+        <<: *OrdererCapabilities
+    Consortiums:
+      ABHIConsortium:
+        Organizations:
+          - *ABHIBank
+          - *ABHILending
+          - *ABHICompliance
+
+  # The KYC channel.
+  KycChannel:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *ABHIBank
+        - *ABHILending
+        - *ABHICompliance
+      Capabilities:
+        <<: *ApplicationCapabilities
+
+  # Phase 2 — organizations and merchants (KYB). Separate channel because the
+  # record shape differs and because merchant partners may eventually join it
+  # and must not see individual KYC.
+  KybChannel:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererOrg
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *ABHIBank
+        - *ABHILending
+        - *ABHICompliance
+      Capabilities:
+        <<: *ApplicationCapabilities
