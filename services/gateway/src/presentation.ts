@@ -123,6 +123,63 @@ export class PresentationStore {
     });
   }
 
+  /**
+   * Verification counts per day, newest bucket last.
+   *
+   * Bucketed HERE rather than in the browser, deliberately. The client could
+   * page /audit and count what came back, but that feed is capped per request:
+   * a truncated page silently undercounts the OLDEST days, producing a chart
+   * that slopes downward as an artefact of pagination rather than because
+   * activity fell. Aggregating over the whole retained index removes that
+   * class of lie entirely.
+   *
+   * `complete` is the honest half. This store keeps at most MAX_ENTRIES, so a
+   * busy gateway can evict events that fall inside the requested window. When
+   * that has happened the earliest buckets are undercounts, and the caller is
+   * told so rather than left to trust the bars.
+   */
+  dailyActivity(
+    days: number,
+    now: Date,
+  ): { buckets: { date: string; verifications: number; reused: number }[]; complete: boolean } {
+    const span = Math.max(1, Math.min(days, 90));
+
+    // Local calendar days, not UTC: "today" has to mean the operator's today.
+    const key = (d: Date): string =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    start.setDate(start.getDate() - (span - 1));
+
+    const buckets = new Map<string, { date: string; verifications: number; reused: number }>();
+    for (let i = 0; i < span; i++) {
+      const d = new Date(start);
+      d.setDate(start.getDate() + i);
+      buckets.set(key(d), { date: key(d), verifications: 0, reused: 0 });
+    }
+
+    for (const e of this.#activity) {
+      if (e.action !== 'VERIFICATION') continue;
+      const at = new Date(e.at);
+      if (Number.isNaN(at.getTime()) || at < start) continue;
+      const bucket = buckets.get(key(at));
+      if (bucket === undefined) continue;
+      bucket.verifications += 1;
+      if (e.decision === 'ALLOW') bucket.reused += 1;
+    }
+
+    // At capacity the oldest retained event bounds what can be counted. If it
+    // is newer than the window start, the earliest buckets are incomplete.
+    const oldest = this.#activity[this.#activity.length - 1];
+    const complete =
+      this.#activity.length < MAX_ENTRIES ||
+      oldest === undefined ||
+      new Date(oldest.at) <= start;
+
+    return { buckets: [...buckets.values()], complete };
+  }
+
   /** Counts for the queue tabs, computed once rather than per tab. */
   queueCounts(): Record<DecisionOutcome, number> {
     const counts: Record<DecisionOutcome, number> = {

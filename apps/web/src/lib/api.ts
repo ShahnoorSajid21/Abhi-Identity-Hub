@@ -210,6 +210,20 @@ export const api = {
 /* Directory endpoints — FRONTEND_PLAN §4.4                            */
 /* ------------------------------------------------------------------ */
 
+export interface ActivityBucket {
+  /** Local calendar day, YYYY-MM-DD. */
+  date: string;
+  verifications: number;
+  /** The subset that was answered ALLOW — a reused identity. */
+  reused: number;
+}
+
+export interface DailyActivity {
+  buckets: ActivityBucket[];
+  /** False when retention did not cover the window; earliest bars undercount. */
+  complete: boolean;
+}
+
 export interface DashboardSummary {
   totalCustomers: number;
   confirmedCustomers: number;
@@ -350,6 +364,21 @@ function qs(params: Record<string, string | number | boolean | undefined | null>
 export const directory = {
   summary: (signal?: AbortSignal) =>
     request<DashboardSummary>('GET', '/dashboard/summary', undefined, signal ? { signal } : {}),
+
+  /**
+   * Verifications per day, bucketed by the gateway.
+   *
+   * `complete` is false when the gateway's retention window did not cover the
+   * whole span, which makes the earliest bars undercounts — the chart says so
+   * rather than drawing them as fact.
+   */
+  dailyActivity: (days: number, signal?: AbortSignal) =>
+    request<DailyActivity>(
+      'GET',
+      `/dashboard/activity${qs({ days })}`,
+      undefined,
+      signal ? { signal } : {},
+    ),
 
   customers: (
     params: {

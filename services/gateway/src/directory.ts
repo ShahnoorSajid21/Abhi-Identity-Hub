@@ -186,6 +186,20 @@ export function buildDirectoryRoutes(deps: DirectoryDeps): {
     };
   });
 
+  /**
+   * Verifications per day, for the dashboard's activity chart.
+   *
+   * Aggregated server-side over the whole retained index. Paging /audit and
+   * counting in the browser would undercount the oldest days whenever a page
+   * truncates, and a chart that slopes down for that reason is worse than no
+   * chart. `complete` reports whether retention actually covered the window.
+   */
+  exact.set('GET /dashboard/activity', async ({ query, tx }) => {
+    const requested = Number.parseInt(query.get('days') ?? '7', 10);
+    const days = Number.isFinite(requested) && requested > 0 ? requested : 7;
+    return { status: 200, body: presentation.dailyActivity(days, tx.timestamp) };
+  });
+
   /** The verification queue. */
   exact.set('GET /queue', async ({ query }) => {
     const decision = query.get('decision');

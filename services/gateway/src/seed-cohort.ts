@@ -159,6 +159,58 @@ export interface SeedResult {
  * incurring it — so seeding these leaves "spend today" at zero while giving
  * "reused today" and "avoided" something true to report.
  */
+/**
+ * Relative request volume by weekday, Sunday first.
+ *
+ * These products are employer-driven — salary advances and payroll lending —
+ * so the week has a real shape and the weekend is quiet without being empty.
+ * The previous seeder placed every request 90 seconds apart, which put the
+ * whole cohort inside a 96-minute window: fine for a queue, but it gave the
+ * activity chart one spike and six empty days.
+ *
+ * DEMONSTRATION DATA. The shape is plausible, not measured — no ABHI volume
+ * figures exist yet ([OPEN-3]), and nothing here should be read as a forecast.
+ */
+const WEEKDAY_WEIGHT = [0.35, 1.0, 1.05, 1.15, 1.1, 0.95, 0.4];
+
+/** Business-hours timestamp for seeded request `i`, spread across `days`. */
+export function seededRequestTime(now: Date, i: number, count: number, days = 7): Date {
+  // Weight each day in the window, then walk the cumulative distribution to
+  // find which day this request falls on.
+  const midnight = new Date(now);
+  midnight.setHours(0, 0, 0, 0);
+
+  const weights: number[] = [];
+  for (let d = days - 1; d >= 0; d--) {
+    const day = new Date(midnight);
+    day.setDate(midnight.getDate() - d);
+    weights.push(WEEKDAY_WEIGHT[day.getDay()] ?? 1);
+  }
+  const total = weights.reduce((a, b) => a + b, 0);
+
+  const target = ((i + 0.5) / Math.max(count, 1)) * total;
+  let cumulative = 0;
+  let index = weights.length - 1;
+  for (let k = 0; k < weights.length; k++) {
+    cumulative += weights[k]!;
+    if (target <= cumulative) {
+      index = k;
+      break;
+    }
+  }
+
+  const at = new Date(midnight);
+  at.setDate(midnight.getDate() - (days - 1 - index));
+
+  // Spread within 09:00–17:00. The final day stops at `now`, because a request
+  // timestamped later this afternoon than the clock reads is a defect an
+  // auditor would spot immediately.
+  const within = (i * 37) % 480; // deterministic minute inside the window
+  at.setHours(9, 0, 0, 0);
+  at.setMinutes(within);
+  return at > now ? new Date(now.getTime() - (i % 45) * 60_000) : at;
+}
+
 export async function seedActivity(
   service: KycGatewayService,
   now: Date,
@@ -188,7 +240,7 @@ export async function seedActivity(
       : plan[(i * 17) % plan.length]!.cnic;
     const subject = { cnic };
     const productId = products[i % products.length]!;
-    const at = new Date(now.getTime() - (count - i) * 90_000);
+    const at = seededRequestTime(now, i, count);
     const tx = memoryContext({ mspId: 'ABHILendingMSP', role: 'gateway', timestamp: at });
 
     try {

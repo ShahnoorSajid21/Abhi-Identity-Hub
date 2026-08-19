@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
   BadgeCheck,
   CalendarClock,
+  CalendarDays,
   Inbox,
   Recycle,
   Snowflake,
@@ -12,8 +14,8 @@ import { directory } from '../lib/api.ts';
 import { useApi } from '../lib/useApi.ts';
 import { formatCount, formatPercent, formatPkr, formatRelative } from '../lib/format.ts';
 import { EMPTY, NOTES, PRODUCTS } from '../copy/strings.ts';
-import { ConfirmationBar } from '../components/ConfirmationBar.tsx';
 import { AssuranceDonut } from '../components/AssuranceDonut.tsx';
+import { VerificationBarChart } from '../components/VerificationBarChart.tsx';
 import { KpiCard } from '../components/KpiCard.tsx';
 import { EmptyState } from '../components/EmptyState.tsx';
 import { ErrorState } from '../components/ErrorState.tsx';
@@ -59,7 +61,9 @@ function SeeAll({ to }: { to: string }) {
 }
 
 export function DashboardPage() {
+  const [days, setDays] = useState(7);
   const summary = useApi((signal) => directory.summary(signal));
+  const activityChart = useApi((signal) => directory.dailyActivity(days, signal), [days]);
   const activity = useApi((signal) => directory.audit({ pageSize: 6 }, signal));
 
   if (summary.error !== null) {
@@ -122,21 +126,38 @@ export function DashboardPage() {
       {/* Row 2 — the wide chart beside the composition donut. */}
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         <section className="card p-7 lg:col-span-2">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-[19px] font-medium text-ink-900">
-              Identity confirmation across the customer base
-            </h2>
-            <SeeAll to="/customers" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-[20px] font-medium text-ink-900">Verification activity</h2>
+            <label className="flex h-10 items-center gap-2 rounded-lg border border-ink-200 px-2.5 text-cell text-ink-700">
+              <CalendarDays size={18} className="shrink-0 opacity-70" aria-hidden="true" />
+              <span className="sr-only">Range</span>
+              <select
+                value={days}
+                onChange={(e) => setDays(Number(e.target.value))}
+                className="cursor-pointer appearance-none bg-transparent pr-1 text-cell text-ink-700 focus:outline-none"
+              >
+                <option value={7}>Last 7 days</option>
+                <option value={14}>Last 14 days</option>
+                <option value={30}>Last 30 days</option>
+              </select>
+            </label>
           </div>
-          <p className="mt-1 text-cell text-ink-500">Select a segment to see those customers.</p>
-          <div className="mt-6">
-            <ConfirmationBar byLevel={d.byLevel} total={d.totalCustomers} />
+          <div className="mt-7">
+            {activityChart.data === null ? (
+              <p className="py-10 text-center text-cell text-ink-500">Loading…</p>
+            ) : (
+              <VerificationBarChart
+                buckets={activityChart.data.buckets}
+                complete={activityChart.data.complete}
+              />
+            )}
           </div>
         </section>
 
         <section className="card p-7">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-[19px] font-medium text-ink-900">Confirmation mix</h2>
+            <h2 className="text-[20px] font-medium text-ink-900">Confirmation mix</h2>
+            <SeeAll to="/customers" />
           </div>
           <div className="mt-6">
             <AssuranceDonut byLevel={d.byLevel} total={d.totalCustomers} />
