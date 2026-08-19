@@ -1,0 +1,98 @@
+import { useState } from 'react';
+import { SkipForward } from 'lucide-react';
+import type { VerificationMethod } from '../lib/api.ts';
+import { METHODS, PRODUCTS } from '../copy/strings.ts';
+import { nextStepFor, type NextStep, type VerifyResult } from '../lib/verify.ts';
+import { CaptureScreen } from './screens/CaptureScreen.tsx';
+import { ReviewDetails } from './screens/ReviewDetails.tsx';
+import { HardStop } from './screens/HardStop.tsx';
+import { OnboardingWizard } from './screens/OnboardingWizard.tsx';
+
+/**
+ * Step-up routing.
+ *
+ * Given a VerifyKYC result, render exactly one screen: the next thing this
+ * customer actually has to do. Screens for checks the ledger already holds are
+ * never mounted — not hidden, not disabled, not mounted — so there is no path
+ * by which a stale render or a mis-set flag could put a customer back through
+ * a fingerprint scan they passed last month.
+ *
+ * The routing rule itself lives in lib/verify.ts as a pure function. This
+ * component only mounts what that rule selected.
+ */
+
+export function StepUpRouter({
+  result,
+  productId,
+  onFinished,
+  now,
+}: {
+  result: VerifyResult;
+  productId: string;
+  /** Fired when the customer clears the last outstanding check. */
+  onFinished?: (completed: VerificationMethod[]) => void;
+  /** Injectable clock for the attempt cap. Tests pass a fixed date. */
+  now?: Date;
+}) {
+  const initial = nextStepFor(result.decision);
+  const [step, setStep] = useState<NextStep>(initial);
+  const [completed, setCompleted] = useState<VerificationMethod[]>([]);
+
+  function completeCurrent(method: VerificationMethod) {
+    const done = [...completed, method];
+    setCompleted(done);
+
+    // Walk the remaining queue. In practice a step-up is one method, but an
+    // A0 record stepping to A2 legitimately has three, and the customer should
+    // move straight from one to the next without returning to the gateway.
+    if (step.remaining.length === 0) {
+      onFinished?.(done);
+      setStep({ screen: 'review', method: null, remaining: [], skipped: step.skipped });
+      return;
+    }
+    const [next, ...rest] = step.remaining;
+    setStep(nextStepFor({ ...result.decision, missingMethods: [next!, ...rest] }));
+  }
+
+  const product = PRODUCTS[productId] ?? productId;
+
+  return (
+    <div data-testid="step-up-router" data-screen={step.screen}>
+      {step.skipped.length > 0 && step.screen !== 'review' && (
+        <p
+          className="mb-4 flex items-start gap-2 rounded-control border border-ok-line bg-ok-bg px-4 py-3 text-cell leading-6 text-ok-fg"
+          data-testid="skipped-notice"
+        >
+          <SkipForward size={16} className="mt-1 shrink-0" aria-hidden="true" />
+          <span>
+            {/* The saving, named. This is the sentence the whole programme
+                exists to be able to put in front of a customer. */}
+            We already have your {step.skipped.map((m) => (METHODS[m] ?? m).toLowerCase()).join(' and ')}
+            {step.skipped.length === 1 ? '' : ' checks'}, so we will not ask again. Just one more
+            step for {product}.
+          </span>
+        </p>
+      )}
+
+      {step.screen === 'review' && <ReviewDetails result={result} productId={productId} />}
+
+      {step.screen === 'hard-stop' && <HardStop reason={result.decision.reason} />}
+
+      {step.screen === 'full-onboarding' && (
+        <OnboardingWizard
+          methods={step.remaining.length > 0 ? step.remaining : result.decision.missingMethods}
+          onComplete={(done) => onFinished?.(done)}
+        />
+      )}
+
+      {step.method !== null && step.method !== 'ASSERTED' && (
+        <CaptureScreen
+          method={step.method}
+          subjectId={result.subjectId}
+          onComplete={(r) => completeCurrent(r.method)}
+          {...(now ? { now } : {})}
+        />
+      )}
+    </div>
+  );
+}

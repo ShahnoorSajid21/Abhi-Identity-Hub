@@ -184,14 +184,24 @@ export function buildRoutes(svc: KycGatewayService): Map<string, Handler> {
     return { status: 201, body: r };
   });
 
+  /**
+   * VerifyKYC.
+   *
+   * Accepts EITHER a subjectId or a cnic, never both as equals: subjectId wins
+   * when present. A caller that already holds the identifier has no reason to
+   * send a CNIC, and accepting one anyway would quietly reintroduce the PII
+   * into a request that did not need it.
+   */
   routes.set('POST /kyc/verify', async ({ body, tx }) => {
-    const r = await svc.verify(
-      tx,
-      str(body, 'cnic'),
-      str(body, 'productId'),
-      (body['consentId'] as string | undefined) ?? null,
-      body['requestedAttributes'] as string[] | undefined,
-    );
+    const subjectId = str(body, 'subjectId', false);
+    const productId = str(body, 'productId');
+    const consentId = (body['consentId'] as string | undefined) ?? null;
+    const requested = body['requestedAttributes'] as string[] | undefined;
+
+    const r =
+      subjectId.length > 0
+        ? await svc.verifyBySubject(tx, subjectId, productId, consentId, requested)
+        : await svc.verify(tx, str(body, 'cnic'), productId, consentId, requested);
     return { status: 200, body: r };
   });
 

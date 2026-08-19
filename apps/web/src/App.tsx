@@ -11,6 +11,7 @@ import { CompliancePage } from './pages/CompliancePage.tsx';
 import { OnboardingPage } from './pages/OnboardingPage.tsx';
 import { QueuePage, QueueRequestPage } from './pages/QueuePage.tsx';
 import { AuditPage } from './pages/AuditPage.tsx';
+import { ApplyPage } from './pages/ApplyPage.tsx';
 
 /**
  * Routes. Every screen is reachable by typing its address, so a mis-click
@@ -44,6 +45,9 @@ export function App() {
               path="queue/:requestId"
               element={<QueueRequestPage />}
             />
+            {/* Customer-facing product request flows. The decision engine
+                picks the screen; see apps/web/src/apply/StepUpRouter.tsx. */}
+            <Route path="apply/:productId" element={<ApplyPage />} />
             <Route
               path="onboarding"
               element={<OnboardingPage />}

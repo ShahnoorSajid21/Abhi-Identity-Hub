@@ -19,6 +19,7 @@ import {
   type Decision,
 } from '@abhi/policy';
 import {
+  assertHex64,
   fail,
   REQUIRED_METHODS,
   type AssuranceLevel,
@@ -193,7 +194,37 @@ export class KycGatewayService {
     consentId: string | null,
     requestedAttributes?: readonly string[],
   ): Promise<VerifyResult> {
-    const subjectId = await this.subjectId(cnic);
+    return this.verifyBySubject(
+      ctx,
+      await this.subjectId(cnic),
+      productId,
+      consentId,
+      requestedAttributes,
+    );
+  }
+
+  /**
+   * VerifyKYC keyed by subject id.
+   *
+   * The caller already holds the identifier and no CNIC is involved at any
+   * point. This is the form the operations console and the customer journey
+   * use: the console addresses customers by subject id precisely because a
+   * subject id cannot be reversed to a citizen without the HSM pepper, and a
+   * CNIC travelling to satisfy an internal lookup would put one in a URL, a
+   * browser history and every access log on the path.
+   *
+   * Identical decision logic to verify() — the CNIC form simply derives the
+   * subject id first. Sharing one body is deliberate: two copies of this state
+   * machine would be two things to keep in step with Compliance.
+   */
+  async verifyBySubject(
+    ctx: TxContext,
+    subjectId: string,
+    productId: string,
+    consentId: string | null,
+    requestedAttributes?: readonly string[],
+  ): Promise<VerifyResult> {
+    assertHex64(subjectId, 'ERR_INVALID_SUBJECT', 'subjectId');
     const policy = getPolicy(productId);
     if (policy === null) fail('ERR_INVALID_SCOPE', `unknown product ${productId}`);
 

@@ -33,7 +33,8 @@
     "network:deploy-cc": "bash network/scripts/deploy-chaincode.sh",
     "typecheck": "tsc --noEmit",
     "verify": "npm run typecheck && npm run check:cnic && npm run vectors:verify && npm test && npm run audit:conformance",
-    "check:cnic": "node scripts/check-cnic-literals.mjs"
+    "check:cnic": "node scripts/check-cnic-literals.mjs",
+    "test:web": "npm run test --workspace @abhi/web"
   },
   "devDependencies": {
     "@grpc/grpc-js": "^1.14.4",
