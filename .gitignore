@@ -26,3 +26,12 @@ secrets/
 vault/data/
 .ledger-state.json
 .DS_Store
+
+# Agent tooling installed into the working tree by assistant sessions.
+# Not part of the POC: it is local developer tooling that happens to live
+# here, and committing it puts ~900K of unrelated skill definitions into a
+# banking repository's history. .claude/launch.json IS tracked deliberately —
+# it is this project's dev-server config — so the ignore is scoped to skills.
+.agents/
+.claude/skills/
+skills-lock.json

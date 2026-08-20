@@ -172,6 +172,30 @@ export const api = {
   }) => request<unknown>('POST', '/kyc/verify', input),
 
   /**
+   * Register a customer the ledger has never seen.
+   *
+   * The gateway runs a rail for each outcome attribute set to true, and the
+   * assurance level falls out of which ones actually succeeded — it is never
+   * asserted by the caller. That is what stops a compromised client claiming
+   * A3 for a customer who only passed a NADRA lookup.
+   */
+  register: (input: {
+    cnic: string;
+    attributes: Record<string, string | boolean | number>;
+    originProduct: string;
+    cnicExpiryAt: string;
+  }) =>
+    request<{
+      subjectId: string;
+      version: number;
+      assuranceLevel: AssuranceLevel;
+      methods: VerificationMethod[];
+      merkleRoot: string;
+      railCallsMade: number;
+      costSpentPkr: number;
+    }>('POST', '/kyc/register', input),
+
+  /**
    * Step up an existing identity.
    *
    * Only the missing checks are supplied; everything already confirmed is

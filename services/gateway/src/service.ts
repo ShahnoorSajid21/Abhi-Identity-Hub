@@ -140,6 +140,8 @@ export class KycGatewayService {
   // -------------------------------------------------------------------
   async register(ctx: TxContext, input: VerificationInput): Promise<RegisterResult> {
     const subjectId = await this.subjectId(input.cnic);
+    // Snapshot before any rail runs. See the return block for why.
+    const railsBefore = this.#d.rails.metrics;
 
     // Run the full journey against the rails.
     //
@@ -186,8 +188,19 @@ export class KycGatewayService {
       assuranceLevel: level,
       methods: [...methods].sort(),
       merkleRoot,
-      railCallsMade: this.#d.rails.metrics.callsMade,
-      costSpentPkr: this.#d.rails.metrics.costSpentPkr,
+      /*
+       * THIS registration's rail usage, not the process total.
+       *
+       * These two read the running counters directly, so they reported every
+       * rail call the gateway had ever made. A registration that ran three
+       * checks costing PKR 80 reported "7 checks, PKR 180" on a gateway that
+       * had done other work — a number that grows on its own is worse than no
+       * number, and the new-customer screen puts it in front of an operator.
+       *
+       * verify() already took the delta; register() simply had not.
+       */
+      railCallsMade: this.#d.rails.metrics.callsMade - railsBefore.callsMade,
+      costSpentPkr: this.#d.rails.metrics.costSpentPkr - railsBefore.costSpentPkr,
     };
   }
 

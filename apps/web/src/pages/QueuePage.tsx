@@ -378,9 +378,25 @@ export function QueueRequestPage() {
       )}
 
       <section className="card mt-5 p-5">
+        {/*
+          ENTITLEMENT, not disclosure.
+
+          This heading read "What this product was shown", which was not true.
+          `disclosedAttributes` is the decision's disclosableAttributes — what
+          the product's policy permits it to ask for. Nothing is actually
+          handed over until a proof is issued, and a proof is issued only when
+          a verification carries a consent id, which this console does not yet
+          send. Telling a compliance audience that a product "was shown" data
+          it never received is exactly the claim that loses the room.
+        */}
         <h2 className="text-section font-semibold text-ink-900">
-          What this product was shown
+          What this product may see
         </h2>
+        <p className="mt-1 text-cell leading-6 text-ink-500">
+          Its policy permits these attributes and no others. They are handed over only once the
+          customer's consent is recorded and a proof is issued — nothing has been disclosed by
+          this request on its own.
+        </p>
         <div className="mt-4">
           <AttributeDisclosure disclosed={data.disclosedAttributes} />
         </div>

@@ -56,7 +56,25 @@ export function ReviewDetails({ result, productId }: { result: VerifyResult; pro
       </dl>
 
       <div className="mt-6">
-        <h3 className="text-cell font-semibold text-ink-900">What {product} was shown</h3>
+        {/*
+          Two different claims, and the difference is not cosmetic.
+
+          With a proof, these attributes really were handed to the product and
+          each one is verifiable against the root on the ledger. Without one,
+          this is only what the product's policy ENTITLES it to ask for —
+          nothing has crossed. Saying "was shown" in both cases would tell a
+          compliance audience that a disclosure happened when none did.
+        */}
+        <h3 className="text-cell font-semibold text-ink-900">
+          {result.proof !== null
+            ? `What ${product} was shown`
+            : `What ${product} may see`}
+        </h3>
+        {result.proof === null && (
+          <p className="mt-1 text-caption leading-5 text-ink-500">
+            Handed over only once consent is recorded and a proof is issued.
+          </p>
+        )}
         <div className="mt-3">
           <AttributeDisclosure disclosed={disclosed} />
         </div>

@@ -1,6 +1,5 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { Shell } from './app/Shell.tsx';
-import { PAGE_TITLES } from './copy/strings.ts';
 import { ToastProvider } from './components/Toast.tsx';
 import { UnderConstruction } from './pages/UnderConstruction.tsx';
 import { PoliciesPage } from './pages/PoliciesPage.tsx';
@@ -12,6 +11,7 @@ import { OnboardingPage } from './pages/OnboardingPage.tsx';
 import { QueuePage, QueueRequestPage } from './pages/QueuePage.tsx';
 import { AuditPage } from './pages/AuditPage.tsx';
 import { ApplyPage } from './pages/ApplyPage.tsx';
+import { NewCustomerPage } from './pages/NewCustomerPage.tsx';
 
 /**
  * Routes. Every screen is reachable by typing its address, so a mis-click
@@ -29,10 +29,7 @@ export function App() {
           <Route element={<Shell />}>
             <Route index element={<DashboardPage />} />
             <Route path="customers" element={<CustomersPage />} />
-            <Route
-              path="customers/new"
-              element={<UnderConstruction title={PAGE_TITLES.newCustomer} section="5.9" />}
-            />
+            <Route path="customers/new" element={<NewCustomerPage />} />
             <Route
               path="customers/:subjectId"
               element={<CustomerProfilePage />}
