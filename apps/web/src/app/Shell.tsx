@@ -3,8 +3,6 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { IconRail } from './IconRail.tsx';
 import { AppHeader } from './AppHeader.tsx';
 import { GlossaryDrawer } from '../components/GlossaryDrawer.tsx';
-import { dashboardSummary } from '../lib/api.ts';
-import { useApi } from '../lib/useApi.ts';
 import { GlossaryContext } from '../lib/glossary.ts';
 
 /**
@@ -25,10 +23,6 @@ export function Shell() {
   const [glossaryFocus, setGlossaryFocus] = useState<string | null>(null);
   const [navOpen, setNavOpen] = useState(false);
   const location = useLocation();
-
-  // Rail counts. Returns null until GET /dashboard/summary exists, and the
-  // badges are simply absent until then rather than showing a zero.
-  const { data: summary } = useApi((signal) => dashboardSummary(signal));
 
   const openGlossary = useCallback((entryId?: string) => {
     setGlossaryFocus(entryId ?? null);
@@ -55,7 +49,7 @@ export function Shell() {
   return (
     <GlossaryContext.Provider value={openGlossary}>
       <div className="min-h-screen bg-navy-900">
-        <IconRail summary={summary} open={navOpen} onClose={closeNav} />
+        <IconRail open={navOpen} onClose={closeNav} />
 
         <div className="lg:pl-24">
           <div className="mx-auto max-w-content px-4 pb-10 sm:px-6 lg:pr-10">

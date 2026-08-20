@@ -11,45 +11,49 @@ import {
   X,
 } from 'lucide-react';
 import { NAV } from '../copy/strings.ts';
-import { formatCount } from '../lib/format.ts';
 import { RailAvatar } from './RailAvatar.tsx';
 import { AbhiMark } from './AbhiLogo.tsx';
-import type { DashboardSummary } from '../lib/api.ts';
 
 /**
  * The floating icon rail.
  *
  * Geometry follows the dashboard reference, rescaled: the reference draws a
- * 76px column with 60px targets on a 1440px frame, which reads oversized on the
- * ~1900px viewports this console runs on. Proportions are kept; the column is
- * 64px with 48px targets. The
- * reference marks the active item with a near-black disc on a white rail; here
- * it is a mint disc on a navy rail, which is the same figure/ground move
- * carried into ABHI's palette — and navy-on-mint measures 9.1:1, where the
- * reference's white-on-mint would have measured 2.0:1.
+ * 76px column with 60px targets on a 1440px frame, which reads oversized on
+ * the ~1900px viewports this console runs on. Proportions are kept; the column
+ * is 64px with 48px targets. The reference marks the active item with a
+ * near-black disc on a white rail; here it is a mint disc on a navy rail — the
+ * same figure/ground move carried into ABHI's palette, and navy-on-mint
+ * measures 9.1:1 where the reference's white-on-mint would have been 2.0:1.
  *
- * Icon-only navigation is a real accessibility risk, so every target carries an
- * accessible name AND a hover tooltip. The label is not optional decoration:
- * a compliance officer who cannot tell "Compliance" from "Audit" by glyph alone
- * has been given a puzzle, not a console.
+ * The rail carries NO count badges. Queue depth and compliance holds each had
+ * one, and at 48px a chip large enough to read sat on top of the glyph it was
+ * annotating — two competing colours fighting the active state for attention
+ * in a 64px column. Both numbers already lead the screens they point at: the
+ * queue's tab counts and the dashboard's "Waiting on a check" card. A rail is
+ * for getting somewhere, not for reporting.
+ *
+ * Icon-only navigation is a real accessibility risk, so every target carries
+ * an accessible name AND a hover tooltip. The label is not optional
+ * decoration: a compliance officer who cannot tell "Compliance" from "Audit"
+ * by glyph alone has been given a puzzle, not a console.
  */
-
-type BadgeTone = 'neutral' | 'warn' | 'stop';
 
 interface RailItem {
   to: string;
   label: string;
   icon: typeof Home;
   end?: boolean;
-  count?: number | null;
-  tone?: BadgeTone;
 }
 
-const BADGE_TONE: Record<BadgeTone, string> = {
-  neutral: 'bg-navy-600 text-white',
-  warn: 'bg-warn-line text-navy-900',
-  stop: 'bg-stop-line text-white',
-};
+const PRIMARY: RailItem[] = [
+  { to: '/', label: NAV.dashboard, icon: Home, end: true },
+  { to: '/customers', label: NAV.customers, icon: Users },
+  { to: '/queue', label: NAV.queue, icon: ClipboardList },
+  { to: '/onboarding', label: NAV.onboarding, icon: Upload },
+  { to: '/compliance', label: NAV.compliance, icon: Flag },
+  { to: '/audit', label: NAV.audit, icon: ScrollText },
+  { to: '/settings/policies', label: NAV.settings, icon: Settings },
+];
 
 function RailLink({ item, onNavigate }: { item: RailItem; onNavigate: () => void }) {
   return (
@@ -72,24 +76,6 @@ function RailLink({ item, onNavigate }: { item: RailItem; onNavigate: () => void
         <item.icon size={19} aria-hidden="true" />
         <span className="sr-only">{item.label}</span>
 
-        {/* Shown only when known AND non-zero. An unknown count must not render
-            as 0, which would claim "nothing needs attention" when the truth is
-            that nobody asked.
-
-            Capped at 99+ and pinned to the icon's top-right corner with a ring
-            in the rail colour. Uncapped, a four-digit count grew wider than the
-            48px target it sat on and covered the glyph completely. The exact
-            figure is still available — it is in the tooltip and on the page the
-            item leads to. */}
-        {typeof item.count === 'number' && item.count > 0 && (
-          <span
-            aria-hidden="true"
-            className={`tabular absolute -right-1 -top-0.5 min-w-[18px] rounded-pill px-1 text-center text-caption font-semibold leading-[16px] tracking-normal ring-2 ring-navy-800 ${BADGE_TONE[item.tone ?? 'neutral']}`}
-          >
-            {item.count > 99 ? '99+' : formatCount(item.count)}
-          </span>
-        )}
-
         {/* Tooltip. An icon rail without one is a memory test. */}
         <span
           role="tooltip"
@@ -102,15 +88,7 @@ function RailLink({ item, onNavigate }: { item: RailItem; onNavigate: () => void
   );
 }
 
-export function IconRail({
-  summary,
-  open,
-  onClose,
-}: {
-  summary: DashboardSummary | null;
-  open: boolean;
-  onClose: () => void;
-}) {
+export function IconRail({ open, onClose }: { open: boolean; onClose: () => void }) {
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -122,25 +100,6 @@ export function IconRail({
     closeRef.current?.focus();
     return () => document.removeEventListener('keydown', onKey);
   }, [open, onClose]);
-
-  const primary: RailItem[] = [
-    { to: '/', label: NAV.dashboard, icon: Home, end: true },
-    // No badge: 1,204 is the size of the customer base, not a number of things
-    // waiting. Badging a total put a four-digit chip on top of a 48px icon and
-    // said nothing actionable. Only queue depth and compliance holds are badged.
-    { to: '/customers', label: NAV.customers, icon: Users },
-    {
-      to: '/queue',
-      label: NAV.queue,
-      icon: ClipboardList,
-      count: summary?.queueDepth,
-      tone: 'warn',
-    },
-    { to: '/onboarding', label: NAV.onboarding, icon: Upload },
-    { to: '/compliance', label: NAV.compliance, icon: Flag, count: summary?.frozen, tone: 'stop' },
-    { to: '/audit', label: NAV.audit, icon: ScrollText },
-    { to: '/settings/policies', label: NAV.settings, icon: Settings },
-  ];
 
   return (
     <>
@@ -171,9 +130,10 @@ export function IconRail({
           <X size={18} />
         </button>
 
-        {/* The reference places the mark above the rail, 56px square. At a 76px
-            column the full lockup cannot fit, so the monogram carries the brand
-            here and the wordmark lives on the sign-in and print surfaces. */}
+        {/* The reference places the mark above the rail, 56px square. At this
+            column width the full lockup cannot fit, so the monogram carries the
+            brand here and the wordmark lives on the sign-in and print
+            surfaces. */}
         <Link to="/" aria-label="ABHI — go to dashboard" className="shrink-0 rounded-2xl">
           <AbhiMark className="h-11 w-11" />
         </Link>
@@ -183,7 +143,7 @@ export function IconRail({
           className="flex w-16 flex-col items-center gap-0 rounded-rail bg-navy-800 py-1.5 shadow-panel ring-1 ring-inset ring-navy-600"
         >
           <ul className="flex flex-col items-center">
-            {primary.map((item) => (
+            {PRIMARY.map((item) => (
               <RailLink key={item.to} item={item} onNavigate={onClose} />
             ))}
           </ul>

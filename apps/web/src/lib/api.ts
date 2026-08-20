@@ -506,18 +506,4 @@ export const directory = {
     request<CbsProfile>('POST', '/rails/cbs/profile', { subjectId }),
 };
 
-/**
- * Rail counts. Returns null if the endpoint is unavailable, so the shell
- * renders without badges rather than showing a zero — a zero would claim
- * "nothing needs attention" when the truth is that nobody could ask.
- */
-export async function dashboardSummary(signal?: AbortSignal): Promise<DashboardSummary | null> {
-  try {
-    return await directory.summary(signal);
-  } catch (e) {
-    if (e instanceof ApiError && e.isNotBuilt) return null;
-    throw e;
-  }
-}
-
 export { request };
