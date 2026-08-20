@@ -30,8 +30,19 @@ const FILL: Record<AssuranceLevel, string> = {
   A3: 'var(--ladder-3)',
 };
 
-const RADIUS = 56;
-const STROKE = 22;
+/**
+ * Ring geometry.
+ *
+ * Sized by the hole, not the outside: the centre has to hold a 24px figure
+ * above a wrapped level name, and the widest of those — "Fingerprint verified"
+ * — needs about 92px of line box to break cleanly in two. A 66/20 ring leaves
+ * a 112px hole, which inscribes that comfortably. The earlier 56/22 ring left
+ * 90px, and the label ran out over the arcs.
+ */
+const RADIUS = 66;
+const STROKE = 20;
+const SIZE = 176;
+const CENTRE = SIZE / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 /** The 2px surface gap between adjacent fills, expressed as arc length. */
 const GAP = 2;
@@ -65,15 +76,21 @@ export function AssuranceDonut({
   const focused = hover === null ? null : arcs.find((a) => a.level === hover) ?? null;
 
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-6">
+    <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-6">
       <div className="relative shrink-0">
-        <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Customers by identity confirmation level">
-          <g transform="rotate(-90 75 75)">
+        <svg
+          width={SIZE}
+          height={SIZE}
+          viewBox={`0 0 ${SIZE} ${SIZE}`}
+          role="img"
+          aria-label="Customers by identity confirmation level"
+        >
+          <g transform={`rotate(-90 ${CENTRE} ${CENTRE})`}>
             {arcs.map((a) => (
               <circle
                 key={a.level}
-                cx="75"
-                cy="75"
+                cx={CENTRE}
+                cy={CENTRE}
                 r={RADIUS}
                 fill="none"
                 stroke={FILL[a.level]}
@@ -90,23 +107,19 @@ export function AssuranceDonut({
         </svg>
 
         {/* The centre carries the whole the segments are parts of — or, on
-            hover, the segment being pointed at. */}
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-          {focused === null ? (
-            <>
-              <span className="tabular text-title font-semibold leading-none text-ink-900">
-                {formatCount(total)}
-              </span>
-              <span className="mt-1 text-caption text-ink-500">customers</span>
-            </>
-          ) : (
-            <>
-              <span className="tabular text-title font-semibold leading-none text-ink-900">
-                {formatPercent(focused.fraction)}
-              </span>
-              <span className="mt-1 text-caption text-ink-500">{LEVELS[focused.level].label}</span>
-            </>
-          )}
+            hover, the segment being pointed at.
+
+            The label is clamped to the hole's inscribed width and wraps rather
+            than running at its natural length. Unclamped, a two-word level name
+            ran out across the arcs and sat on the figure above it, which is the
+            one thing a donut centre must never do. */}
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5 text-center">
+          <span className="tabular text-title font-semibold leading-none text-ink-900">
+            {focused === null ? formatCount(total) : formatPercent(focused.fraction)}
+          </span>
+          <span className="max-w-[92px] text-balance text-caption leading-[14px] text-ink-500">
+            {focused === null ? 'customers' : LEVELS[focused.level].label}
+          </span>
         </div>
       </div>
 

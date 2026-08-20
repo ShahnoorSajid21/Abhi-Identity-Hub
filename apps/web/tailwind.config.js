@@ -69,9 +69,11 @@ export default {
         body: ['15px', { lineHeight: '24px' }],
         section: ['16px', { lineHeight: '24px' }],
         title: ['24px', { lineHeight: '32px' }],
-        // Headline figures on the KPI cards. Added so those cards stop reaching
-        // for an arbitrary size and drifting off the scale.
-        figure: ['28px', { lineHeight: '32px' }],
+        // The top of the scale: KPI headline figures and the single big number
+        // a summary card exists to deliver. There is deliberately only one size
+        // up here — a separate 28px `figure` token used to sit alongside it and
+        // was doing nothing but letting the same kind of number render at two
+        // sizes on two screens.
         metric: ['36px', { lineHeight: '40px' }],
       },
       spacing: {

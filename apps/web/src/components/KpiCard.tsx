@@ -71,7 +71,7 @@ export function KpiCard({
       </div>
 
       <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-        <p className="tabular text-figure font-semibold text-ink-900">{figure}</p>
+        <p className="tabular text-metric font-semibold leading-none text-ink-900">{figure}</p>
 
         <div className="flex items-center gap-2">
           {delta !== undefined && (

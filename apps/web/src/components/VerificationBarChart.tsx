@@ -26,6 +26,17 @@ const PLOT_H = 184;
 const TICKS = 4;
 
 /**
+ * Height of the tooltip card, and its gap to the bar it labels.
+ *
+ * Three 16px caption lines on 4px leading inside 8px of vertical padding comes
+ * to 72px. Both feed the clamp below rather than a branch in JS: the tooltip is
+ * positioned in the plot's own percentage space, so the ceiling has to be
+ * expressed in that space too.
+ */
+const TOOLTIP_H = 72;
+const TOOLTIP_GAP = 8;
+
+/**
  * Bar fill, measured against the white card: 3.94:1.
  *
  * The previous fill was --abhi-mint-100 at 1.10:1, which is why the bars read
@@ -141,6 +152,19 @@ export function VerificationBarChart({
               const isToday = i === today;
               const dim = hover !== null && hover !== i;
 
+              // Where the tooltip goes: 8px above the bar it describes, but
+              // never so high that it leaves the plot.
+              //
+              // `bottom-full` on the COLUMN resolved against the full plot
+              // height rather than the bar, so every tooltip sat above the plot
+              // and covered the paragraph describing the chart. Anchoring to
+              // the bar fixes that; the min() is the ceiling, and it is written
+              // in CSS rather than branched in JS so it holds in the plot's own
+              // percentage space whatever the bar height turns out to resolve
+              // to. A tall bar's tooltip slides down inside the bar instead of
+              // escaping upward.
+              const tooltipBottom = `min(calc(${height} + ${TOOLTIP_GAP}px), calc(100% - ${TOOLTIP_H}px))`;
+
               return (
                 <li
                   key={b.date}
@@ -154,7 +178,7 @@ export function VerificationBarChart({
                   {/* The value on today's bar, always. Selective by design —
                       a number over every bar is noise, and the axis plus the
                       tooltip already carry the rest. */}
-                  {isToday && b.verifications > 0 && (
+                  {isToday && b.verifications > 0 && hover !== i && (
                     <span
                       className="tabular pointer-events-none absolute inset-x-0 text-center text-caption font-semibold text-ink-900"
                       style={{ bottom: `calc(${height} + 6px)` }}
@@ -175,21 +199,18 @@ export function VerificationBarChart({
                   />
 
                   {/*
-                    Tooltip, anchored to the column it describes and sitting
-                    ABOVE the bar rather than across the plot.
-
-                    The previous version positioned itself in plot coordinates
-                    with only a right-hand clamp, so hovering the last bar threw
-                    the card over its neighbours — visible in the screenshot,
-                    where Thursday's tooltip covered Wednesday. Anchoring to the
-                    column removes the arithmetic entirely; the first and last
-                    columns align to their own edge so nothing leaves the card.
+                    Horizontal placement: the first and last columns align to
+                    their own edge, so the card never overhangs the chart — an
+                    earlier version clamped only on the right and threw
+                    Thursday's card across Wednesday. Vertical placement is
+                    `tooltipBottom`, computed above.
                   */}
                   {hover === i && (
                     <div
                       role="status"
+                      style={{ bottom: tooltipBottom }}
                       className={[
-                        'pointer-events-none absolute bottom-full z-20 mb-2 w-[132px] rounded-lg',
+                        'pointer-events-none absolute z-20 w-[132px] rounded-lg',
                         'bg-navy-800 px-3 py-2 shadow-panel',
                         i === 0
                           ? 'left-0'
