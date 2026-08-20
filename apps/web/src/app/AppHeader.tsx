@@ -7,11 +7,14 @@ import { usePersona } from '../lib/useApi.ts';
 /**
  * The page header.
  *
- * Geometry is the reference header exactly (node 19:219): a title block of
- * 32px medium over 20px regular at 0.6px tracking with an 8px gap, then a
- * 12px-gap cluster holding a 425px search pill of radius 180 — 7px padding
- * around a 56px circular button, which is what makes it 70px tall — followed
- * by two 70px circular icon buttons.
+ * Structure is the reference header (node 19:219): a title block on the left,
+ * then a pill search and circular icon buttons on the right.
+ *
+ * The reference's absolute sizes are NOT copied. It draws a 1440px frame, where
+ * a 70px search and 32px greeting are proportionate; at the ~1900px this console
+ * actually runs at they read oversized and unprofessional. The proportions are
+ * kept and the scale is dropped one step: a 46px search with a 36px button, and
+ * 46px icon buttons.
  *
  * The reference carries no product identity here; its logo sits above the rail,
  * and so does ABHI's.
@@ -54,7 +57,7 @@ export function AppHeader({
   const firstName = persona.name.split(' ')[0] ?? persona.name;
 
   return (
-    <header className="flex flex-wrap items-center gap-x-10 gap-y-6 pb-2 pt-11">
+    <header className="flex flex-wrap items-center gap-x-8 gap-y-5 pb-1 pt-7">
       <button
         type="button"
         onClick={onOpenNav}
@@ -66,16 +69,16 @@ export function AppHeader({
       </button>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <h1 className="truncate text-[32px] font-medium leading-none text-white">
+        <h1 className="truncate text-[24px] font-semibold leading-8 text-white">
           Hello, {firstName}!
         </h1>
-        <p className="truncate text-[20px] leading-none tracking-[0.6px] text-white/70">
-          {persona.title} · what identity records can tell you today
-        </p>
+        {/* The persona's role, and nothing else. The previous line ran to a
+            sentence that the header could not fit and clipped mid-word. */}
+        <p className="truncate text-cell leading-5 text-white/65">{persona.title}</p>
       </div>
 
       <div className="flex w-full items-center gap-3 sm:w-auto">
-        <form onSubmit={submit} role="search" className="relative min-w-0 flex-1 sm:w-[425px]">
+        <form onSubmit={submit} role="search" className="relative min-w-0 flex-1 sm:w-[340px]">
           <input
             ref={searchRef}
             type="search"
@@ -83,14 +86,14 @@ export function AppHeader({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={TOP_BAR.searchPlaceholder}
             aria-label={TOP_BAR.searchPlaceholder}
-            className="h-[70px] w-full rounded-[180px] border border-navy-600 bg-navy-800 pl-[22px] pr-[70px] text-[16px] tracking-[0.48px] text-white transition-shadow duration-fast placeholder:text-white/45 focus:border-mint-500 focus:outline-none focus:ring-4 focus:ring-mint-500/25"
+            className="h-[46px] w-full rounded-pill border border-navy-600 bg-navy-800 pl-4 pr-[46px] text-cell text-white transition-shadow duration-fast placeholder:text-white/45 focus:border-mint-500 focus:outline-none focus:ring-4 focus:ring-mint-500/25"
           />
           <button
             type="submit"
             aria-label="Search"
-            className="absolute right-[7px] top-1/2 flex h-[56px] w-[56px] -translate-y-1/2 items-center justify-center rounded-full bg-mint-500 text-navy-900 transition-colors duration-fast hover:bg-mint-600"
+            className="absolute right-[5px] top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full bg-mint-500 text-navy-900 transition-colors duration-fast hover:bg-mint-600"
           >
-            <Search size={24} />
+            <Search size={17} />
           </button>
         </form>
 
@@ -99,9 +102,9 @@ export function AppHeader({
           onClick={onOpenGlossary}
           aria-label={TOP_BAR.helpLabel}
           title={TOP_BAR.helpLabel}
-          className="flex h-[70px] w-[70px] shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-800 text-white/75 transition-colors duration-fast hover:border-mint-500 hover:text-white"
+          className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-800 text-white/75 transition-colors duration-fast hover:border-mint-500 hover:text-white"
         >
-          <HelpCircle size={30} />
+          <HelpCircle size={19} />
         </button>
 
         {/* Non-dismissible environment notice, carried on the reference's
@@ -109,10 +112,10 @@ export function AppHeader({
             it answers "are those real CNICs?" before anyone asks. */}
         <span
           title={TOP_BAR.environmentBadge}
-          className="relative hidden h-[70px] w-[70px] shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-800 text-white/75 sm:flex"
+          className="relative hidden h-[46px] w-[46px] shrink-0 items-center justify-center rounded-full border border-navy-600 bg-navy-800 text-white/75 sm:flex"
         >
-          <Bell size={30} aria-hidden="true" />
-          <span className="absolute right-5 top-5 h-3 w-3 rounded-full bg-warn-line ring-2 ring-navy-800" />
+          <Bell size={19} aria-hidden="true" />
+          <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-warn-line ring-2 ring-navy-800" />
           <span className="sr-only">{TOP_BAR.environmentBadge}</span>
         </span>
       </div>

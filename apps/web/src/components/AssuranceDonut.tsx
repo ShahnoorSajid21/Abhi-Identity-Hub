@@ -30,8 +30,8 @@ const FILL: Record<AssuranceLevel, string> = {
   A3: 'var(--ladder-3)',
 };
 
-const RADIUS = 68;
-const STROKE = 26;
+const RADIUS = 56;
+const STROKE = 22;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 /** The 2px surface gap between adjacent fills, expressed as arc length. */
 const GAP = 2;
@@ -67,13 +67,13 @@ export function AssuranceDonut({
   return (
     <div className="flex flex-wrap items-center gap-x-8 gap-y-6">
       <div className="relative shrink-0">
-        <svg width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="Customers by identity confirmation level">
-          <g transform="rotate(-90 90 90)">
+        <svg width="150" height="150" viewBox="0 0 150 150" role="img" aria-label="Customers by identity confirmation level">
+          <g transform="rotate(-90 75 75)">
             {arcs.map((a) => (
               <circle
                 key={a.level}
-                cx="90"
-                cy="90"
+                cx="75"
+                cy="75"
                 r={RADIUS}
                 fill="none"
                 stroke={FILL[a.level]}
@@ -94,14 +94,14 @@ export function AssuranceDonut({
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
           {focused === null ? (
             <>
-              <span className="tabular text-[26px] font-semibold leading-none text-ink-900">
+              <span className="tabular text-[22px] font-semibold leading-none text-ink-900">
                 {formatCount(total)}
               </span>
               <span className="mt-1 text-caption text-ink-500">customers</span>
             </>
           ) : (
             <>
-              <span className="tabular text-[26px] font-semibold leading-none text-ink-900">
+              <span className="tabular text-[22px] font-semibold leading-none text-ink-900">
                 {formatPercent(focused.fraction)}
               </span>
               <span className="mt-1 text-caption text-ink-500">{LEVELS[focused.level].label}</span>

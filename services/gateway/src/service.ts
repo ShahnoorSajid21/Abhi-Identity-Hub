@@ -47,6 +47,13 @@ export function levelFromMethods(methods: readonly VerificationMethod[]): Assura
   return 'A0';
 }
 
+export interface StepUpResult {
+  subjectId: string;
+  version: number;
+  assuranceLevel: AssuranceLevel;
+  methodsRun: VerificationMethod[];
+}
+
 export interface VerificationInput {
   cnic: string;
   attributes: Record<string, string | boolean | number>;
@@ -345,8 +352,35 @@ export class KycGatewayService {
     attributes: Record<string, string | boolean | number>,
     cnicExpiryAt: string,
     reason: string,
-  ): Promise<{ subjectId: string; version: number; assuranceLevel: AssuranceLevel; methodsRun: VerificationMethod[] }> {
-    const subjectId = await this.subjectId(cnic);
+  ): Promise<StepUpResult> {
+    return this.stepUpBySubject(
+      ctx,
+      await this.subjectId(cnic),
+      productId,
+      attributes,
+      cnicExpiryAt,
+      reason,
+    );
+  }
+
+  /**
+   * Step up, keyed by subject id.
+   *
+   * The operations console addresses customers by subject id and never holds a
+   * CNIC — that is the whole point of the identifier. Requiring one here forced
+   * an operator to retype a customer's card number to run a check the ledger
+   * could already identify, which put PII back into a request that did not
+   * need it.
+   */
+  async stepUpBySubject(
+    ctx: TxContext,
+    subjectId: string,
+    productId: string,
+    attributes: Record<string, string | boolean | number>,
+    cnicExpiryAt: string,
+    reason: string,
+  ): Promise<StepUpResult> {
+    assertHex64(subjectId, 'ERR_INVALID_SUBJECT', 'subjectId');
     const policy = getPolicy(productId);
     if (policy === null) fail('ERR_INVALID_SCOPE', `unknown product ${productId}`);
 
@@ -401,11 +435,29 @@ export class KycGatewayService {
   // Operations 4 & 5 — Suspend / Shred
   // -------------------------------------------------------------------
   async suspend(ctx: TxContext, cnic: string, reason: string, referenceId: string) {
-    return this.#d.ledger.suspend(ctx, await this.subjectId(cnic), reason, referenceId);
+    return this.suspendBySubject(ctx, await this.subjectId(cnic), reason, referenceId);
   }
 
   async reinstate(ctx: TxContext, cnic: string, reason: string, referenceId: string) {
-    return this.#d.ledger.reinstate(ctx, await this.subjectId(cnic), reason, referenceId);
+    return this.reinstateBySubject(ctx, await this.subjectId(cnic), reason, referenceId);
+  }
+
+  /**
+   * Compliance freeze and release, keyed by subject id.
+   *
+   * A compliance officer works from the console, which holds subject ids. The
+   * authority check still lives in the chaincode — these are thin, and
+   * deliberately so: the MSP and role that decide whether the write is
+   * permitted come from the transaction context, never from the payload.
+   */
+  async suspendBySubject(ctx: TxContext, subjectId: string, reason: string, referenceId: string) {
+    assertHex64(subjectId, 'ERR_INVALID_SUBJECT', 'subjectId');
+    return this.#d.ledger.suspend(ctx, subjectId, reason, referenceId);
+  }
+
+  async reinstateBySubject(ctx: TxContext, subjectId: string, reason: string, referenceId: string) {
+    assertHex64(subjectId, 'ERR_INVALID_SUBJECT', 'subjectId');
+    return this.#d.ledger.reinstate(ctx, subjectId, reason, referenceId);
   }
 
   /**

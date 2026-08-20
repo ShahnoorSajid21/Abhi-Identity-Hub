@@ -178,17 +178,19 @@ export const api = {
    * reused, which is the entire point of the step-up path.
    */
   update: (input: {
-    cnic: string;
+    /** Either identifier; subjectId wins when both are sent. */
+    subjectId?: string;
+    cnic?: string;
     productId: string;
     attributes: Record<string, string | boolean | number>;
     cnicExpiryAt: string;
     reason: string;
   }) => request<unknown>('POST', '/kyc/update', input),
 
-  suspend: (input: { cnic: string; reason: string; referenceId: string }) =>
+  suspend: (input: { subjectId?: string; cnic?: string; reason: string; referenceId: string }) =>
     request<unknown>('POST', '/kyc/suspend', input),
 
-  reinstate: (input: { cnic: string; reason: string; referenceId: string }) =>
+  reinstate: (input: { subjectId?: string; cnic?: string; reason: string; referenceId: string }) =>
     request<unknown>('POST', '/kyc/reinstate', input),
 
   /** Erasure. The repository's internal name is crypto-shredding; never surface it. */

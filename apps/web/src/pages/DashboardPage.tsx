@@ -125,9 +125,9 @@ export function DashboardPage() {
 
       {/* Row 2 — the wide chart beside the composition donut. */}
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        <section className="card p-7 lg:col-span-2">
+        <section className="card p-5 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 className="text-[20px] font-medium text-ink-900">Verification activity</h2>
+            <h2 className="text-section font-semibold text-ink-900">Verification activity</h2>
             <label className="flex h-10 items-center gap-2 rounded-lg border border-ink-200 px-2.5 text-cell text-ink-700">
               <CalendarDays size={18} className="shrink-0 opacity-70" aria-hidden="true" />
               <span className="sr-only">Range</span>
@@ -154,9 +154,9 @@ export function DashboardPage() {
           </div>
         </section>
 
-        <section className="card p-7">
+        <section className="card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-[20px] font-medium text-ink-900">Confirmation mix</h2>
+            <h2 className="text-section font-semibold text-ink-900">Confirmation mix</h2>
             <SeeAll to="/customers" />
           </div>
           <div className="mt-6">
@@ -167,9 +167,9 @@ export function DashboardPage() {
 
       {/* Row 3 — two list cards. */}
       <div className="mt-3 grid gap-3 lg:grid-cols-2">
-        <section className="card p-7">
+        <section className="card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-[19px] font-medium text-ink-900">Recent activity</h2>
+            <h2 className="text-section font-semibold text-ink-900">Recent activity</h2>
             <SeeAll to="/audit" />
           </div>
           {activity.data === null || activity.data.rows.length === 0 ? (
@@ -197,9 +197,9 @@ export function DashboardPage() {
           )}
         </section>
 
-        <section className="card p-7">
+        <section className="card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-[19px] font-medium text-ink-900">Needs attention</h2>
+            <h2 className="text-section font-semibold text-ink-900">Needs attention</h2>
             <SeeAll to="/queue" />
           </div>
 

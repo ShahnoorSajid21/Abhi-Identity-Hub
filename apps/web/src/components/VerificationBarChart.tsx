@@ -22,9 +22,9 @@ import type { ActivityBucket } from '../lib/api.ts';
  * hover tooltip carries the exact figure, per the marks-and-anatomy rules.
  */
 
-const BAR_W = 54;
-const GAP = 51;
-const PLOT_H = 160;
+const BAR_W = 40;
+const GAP = 26;
+const PLOT_H = 140;
 
 /** Four gridlines, matching the reference's $0 / $2000 / $3000 / $4000. */
 const TICKS = 4;
@@ -95,7 +95,7 @@ export function VerificationBarChart({
           aria-hidden="true"
         >
           {ticks.map((t) => (
-            <li key={t} className="tabular text-[16px] leading-none text-ink-900/60">
+            <li key={t} className="tabular text-caption leading-none text-ink-500">
               {formatCount(t)}
             </li>
           ))}
@@ -165,11 +165,11 @@ export function VerificationBarChart({
           </svg>
 
           {/* X axis, 24px below the plot per the reference. */}
-          <ul className="mt-6 flex" style={{ width: plotW }}>
+          <ul className="mt-3 flex" style={{ width: plotW }}>
             {buckets.map((b, i) => (
               <li
                 key={b.date}
-                className="shrink-0 text-center text-[16px] text-ink-900/60"
+                className="shrink-0 text-center text-caption text-ink-500"
                 style={{ width: BAR_W, marginRight: i === buckets.length - 1 ? 0 : GAP }}
               >
                 {dayLabel(b.date)}

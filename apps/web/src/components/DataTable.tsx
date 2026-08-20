@@ -140,9 +140,26 @@ export function DataTable<Row>({
         <EmptyState copy={empty} onAction={onEmptyAction} />
       ) : (
         <>
-          <div className="overflow-x-auto">
+          {/*
+            A bounded scroll region, not just a horizontal one.
+
+            `overflow-x: auto` alone makes this element a scroll container on
+            BOTH axes — the spec computes `overflow-y` to `auto` once the other
+            axis is not `visible`. The sticky header therefore anchors to THIS
+            box, not to the page. Previously it carried `top: 56px` from the
+            days when a fixed top bar existed, so it parked 56px down inside an
+            unbounded box and sat on top of the first row (visible in the
+            customer directory screenshot). Setting `top-0` stopped the overlap
+            but left the header scrolling away, because the box had no height
+            to stick within.
+
+            Giving the region a max height makes the sticky do its actual job:
+            at 100 rows a page is ~4,400px tall, and a column header you cannot
+            see is a table you cannot read.
+          */}
+          <div className="max-h-[70vh] overflow-auto">
             <table className="w-full border-collapse">
-              <thead className="sticky top-topbar z-10 bg-ink-50">
+              <thead className="sticky top-0 z-10 bg-ink-50">
                 <tr>
                   {columns.map((column) => (
                     <th

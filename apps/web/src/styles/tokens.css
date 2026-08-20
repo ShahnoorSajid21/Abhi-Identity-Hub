@@ -124,10 +124,16 @@
   --space-8: 32px;
   --space-12: 48px;
 
-  /* Radii — matched to the dashboard reference: soft controls, generous cards. */
-  --radius-control: 12px;
-  --radius-card: 27px; /* measured from the reference card, node 10:1796 */
-  --radius-rail: 38px;
+  /*
+   * Radii.
+   *
+   * The reference draws a 1440px frame; these are its proportions rescaled for
+   * the ~1900px viewports this console actually runs on, where the literal
+   * pixel values read oversized. Ratio to card width is preserved.
+   */
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-rail: 32px;
   --radius-pill: 999px;
 
   /* Motion */

@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Link2, Lock, Snowflake } from 'lucide-react';
+import { Link2, Lock } from 'lucide-react';
 import { api, directory, type AssuranceLevel, type CustomerDetail, type ProductPolicy } from '../lib/api.ts';
-import { useApi, usePersona } from '../lib/useApi.ts';
+import { useApi } from '../lib/useApi.ts';
 import { daysSince, formatDate, formatDateLong, formatRelative, formatTimestamp } from '../lib/format.ts';
 import {
-  ACTIONS,
   ATTRIBUTES,
   CUSTOMER_FACING_PRODUCTS,
   EMPTY,
@@ -22,6 +21,7 @@ import { ErrorState } from '../components/ErrorState.tsx';
 import { SkeletonCard } from '../components/LoadingSkeleton.tsx';
 import { TechnicalDetail, TechnicalRow, CopyableId } from '../components/TechnicalDetail.tsx';
 import { Avatar } from '../components/Avatar.tsx';
+import { CustomerActions } from '../components/CustomerActions.tsx';
 
 /**
  * The customer profile — the heart of the app.
@@ -105,7 +105,7 @@ const HISTORY_TITLE: Record<string, string> = {
 export function CustomerProfilePage() {
   const { subjectId = '' } = useParams();
   const [tab, setTab] = useState<TabId>('identity');
-  const persona = usePersona();
+
 
   const detail = useApi((signal) => directory.customer(subjectId, signal), [subjectId]);
   const history = useApi((signal) => directory.history(subjectId, signal), [subjectId]);
@@ -160,32 +160,16 @@ export function CustomerProfilePage() {
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className="rounded-control bg-navy-700 px-4 py-2 text-cell font-medium text-white transition-colors duration-fast hover:bg-navy-600"
-          >
-            {ACTIONS.runVerification}
-          </button>
-          <button
-            type="button"
-            className="rounded-control border border-ink-200 px-4 py-2 text-cell font-medium text-ink-700 transition-colors duration-fast hover:bg-ink-100"
-          >
-            {ACTIONS.updateIdentity}
-          </button>
-          {/* Present but disabled for non-Compliance. The tooltip says who
-              enforces it, because the UI restriction is a convenience — the
-              ledger is the control. */}
-          <button
-            type="button"
-            disabled={!persona.canFreeze}
-            title={persona.canFreeze ? undefined : NOTES.freezeRestricted}
-            className="inline-flex items-center gap-2 rounded-control border border-stop-line px-4 py-2 text-cell font-medium text-stop-fg transition-colors duration-fast hover:bg-stop-bg disabled:cursor-not-allowed disabled:border-ink-200 disabled:text-ink-500 disabled:hover:bg-transparent"
-          >
-            <Snowflake size={15} />
-            {ACTIONS.freeze}
-          </button>
-        </div>
+        <CustomerActions
+          subjectId={record.subjectId}
+          displayName={cbsProfile.displayName}
+          record={record}
+          onChanged={() => {
+            detail.reload();
+            history.reload();
+            activity.reload();
+          }}
+        />
       </div>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-3">

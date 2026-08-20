@@ -59,36 +59,36 @@ export function KpiCard({
     <>
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-4">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-mint-100 text-mint-700">
-            <Icon size={22} aria-hidden="true" />
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-mint-100 text-mint-700">
+            <Icon size={18} aria-hidden="true" />
           </span>
-          <p className="min-w-0 text-[20px] font-medium leading-tight text-ink-900">{label}</p>
+          <p className="min-w-0 text-cell font-medium leading-tight text-ink-900">{label}</p>
         </div>
         {/* The reference's overflow affordance. Decorative until the menu it
             implies exists, so it is hidden from assistive technology rather
             than announced as a control that does nothing. */}
-        <MoreHorizontal size={20} className="shrink-0 text-ink-300" aria-hidden="true" />
+        <MoreHorizontal size={18} className="shrink-0 text-ink-300" aria-hidden="true" />
       </div>
 
       <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-2">
-        <p className="tabular text-[36px] font-medium leading-none text-ink-900">{figure}</p>
+        <p className="tabular text-[28px] font-semibold leading-none text-ink-900">{figure}</p>
 
         <div className="flex items-center gap-2">
           {delta !== undefined && (
             <span
-              className={`tabular inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-cell font-medium ${TONE[delta.tone]}`}
+              className={`tabular inline-flex items-center gap-0.5 rounded-lg px-1.5 py-0.5 text-caption font-medium ${TONE[delta.tone]}`}
             >
               <Arrow size={13} aria-hidden="true" />
               {Math.abs(Math.round(delta.percent))}%
             </span>
           )}
-          <span className="text-cell text-ink-500">{delta?.caption ?? caption}</span>
+          <span className="text-caption text-ink-500">{delta?.caption ?? caption}</span>
         </div>
       </div>
     </>
   );
 
-  const shell = 'card flex min-h-[171px] flex-col gap-4 p-7';
+  const shell = 'card flex min-h-[132px] flex-col gap-3 p-5';
 
   return to === undefined ? (
     <div className={shell}>{body}</div>

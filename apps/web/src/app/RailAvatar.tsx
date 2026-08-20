@@ -82,7 +82,7 @@ export function RailAvatar() {
           open ? 'ring-2 ring-mint-500 ring-offset-2 ring-offset-navy-900' : 'ring-2 ring-navy-600'
         }`}
       >
-        <Avatar name={persona.name} initials={persona.initials} size={48} />
+        <Avatar name={persona.name} initials={persona.initials} size={40} />
         <span className="sr-only">Change who you are signed in as</span>
       </button>
     </div>

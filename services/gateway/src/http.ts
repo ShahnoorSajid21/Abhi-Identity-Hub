@@ -205,25 +205,49 @@ export function buildRoutes(svc: KycGatewayService): Map<string, Handler> {
     return { status: 200, body: r };
   });
 
+  /**
+   * The write endpoints below all accept EITHER a subjectId or a cnic, with
+   * subjectId winning when both are present.
+   *
+   * The operations console holds subject ids and no CNICs. Before this, every
+   * write from that console had to make an operator retype the customer's card
+   * number — reintroducing PII into a request that did not need it, purely to
+   * satisfy a lookup the ledger could already do.
+   */
   routes.set('POST /kyc/update', async ({ body, tx }) => {
-    const r = await svc.stepUp(
-      tx,
-      str(body, 'cnic'),
+    const subjectId = str(body, 'subjectId', false);
+    const attributes = (body['attributes'] as Record<string, string | boolean | number>) ?? {};
+    const args = [
       str(body, 'productId'),
-      (body['attributes'] as Record<string, string | boolean | number>) ?? {},
+      attributes,
       str(body, 'cnicExpiryAt'),
       str(body, 'reason'),
-    );
+    ] as const;
+
+    const r =
+      subjectId.length > 0
+        ? await svc.stepUpBySubject(tx, subjectId, ...args)
+        : await svc.stepUp(tx, str(body, 'cnic'), ...args);
     return { status: 200, body: r };
   });
 
   routes.set('POST /kyc/suspend', async ({ body, tx }) => {
-    const r = await svc.suspend(tx, str(body, 'cnic'), str(body, 'reason'), str(body, 'referenceId'));
+    const subjectId = str(body, 'subjectId', false);
+    const args = [str(body, 'reason'), str(body, 'referenceId')] as const;
+    const r =
+      subjectId.length > 0
+        ? await svc.suspendBySubject(tx, subjectId, ...args)
+        : await svc.suspend(tx, str(body, 'cnic'), ...args);
     return { status: 200, body: r };
   });
 
   routes.set('POST /kyc/reinstate', async ({ body, tx }) => {
-    const r = await svc.reinstate(tx, str(body, 'cnic'), str(body, 'reason'), str(body, 'referenceId'));
+    const subjectId = str(body, 'subjectId', false);
+    const args = [str(body, 'reason'), str(body, 'referenceId')] as const;
+    const r =
+      subjectId.length > 0
+        ? await svc.reinstateBySubject(tx, subjectId, ...args)
+        : await svc.reinstate(tx, str(body, 'cnic'), ...args);
     return { status: 200, body: r };
   });
 

@@ -57,7 +57,7 @@ export function Shell() {
       <div className="min-h-screen bg-navy-900">
         <IconRail summary={summary} open={navOpen} onClose={closeNav} />
 
-        <div className="lg:pl-[116px]">
+        <div className="lg:pl-24">
           <div className="mx-auto max-w-content px-4 pb-10 sm:px-6 lg:pr-10">
             <AppHeader onOpenGlossary={() => openGlossary()} onOpenNav={() => setNavOpen(true)} />
             <main className="pt-4">
