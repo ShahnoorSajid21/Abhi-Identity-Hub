@@ -115,6 +115,22 @@
   --ladder-2: #00926d;
   --ladder-3: #0a4a37;
 
+  /**
+   * Chart marks for the activity bars.
+   *
+   * MEASURED on the white card: --chart-bar is 3.94:1 and --chart-bar-today is
+   * 5.33:1. The first cut used --abhi-mint-100 at 1.10:1, which left the bars
+   * barely visible in a screenshot. A mark is not text and does not owe 4.5:1,
+   * but it does owe being seen.
+   *
+   * Separate tokens rather than the ladder above, even though --chart-bar and
+   * --ladder-2 currently share a value: the ladder means assurance level, and
+   * a future re-step of that ramp must not silently repaint a chart that is
+   * counting something else entirely.
+   */
+  --chart-bar: #00926d;
+  --chart-bar-today: #007a5c;
+
   /* Spacing scale — 4 / 8 / 12 / 16 / 24 / 32 / 48. Nothing else. */
   --space-1: 4px;
   --space-2: 8px;

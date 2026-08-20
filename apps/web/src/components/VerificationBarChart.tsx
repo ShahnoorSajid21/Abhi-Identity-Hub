@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 import { formatCount } from '../lib/format.ts';
 import type { ActivityBucket } from '../lib/api.ts';
@@ -7,31 +7,37 @@ import type { ActivityBucket } from '../lib/api.ts';
  * Verifications per day.
  *
  * Vertical bars over a discrete time axis: the job is magnitude across a small
- * fixed set of buckets, which is exactly what a bar chart is for. One series,
- * so there is no legend — the card's title names it, and a legend box for a
- * single series is furniture.
+ * fixed set of buckets, which is what a bar chart is for. One series, so there
+ * is no legend — the title and subtitle name it, and a legend box for a single
+ * series is furniture.
  *
- * Geometry is the reference chart (node 14:1709): 54px columns on a 51px gap,
- * 8px rounded bar ends, a 24px gap to the day label, y-axis labels at 16px and
- * 60% opacity, and dashed gridlines behind. One bar is emphasised the way the
- * reference emphasises its selected day — a filled bar carrying a 45° hatch —
- * which is a SECOND channel on top of colour, so the emphasis survives
- * colour-blindness and greyscale printing.
+ * Laid out in CSS rather than a fixed-width SVG. The first cut hard-coded 40px
+ * bars on a 26px gap, which came to 436px inside a card nearly 1,000px wide —
+ * the plot used less than half its space and the rest sat empty. Columns are
+ * now `flex-1`, so the chart fills whatever it is given at any breakpoint.
  *
- * Values are never printed on every bar. The axis carries the scale and the
- * hover tooltip carries the exact figure, per the marks-and-anatomy rules.
+ * Emphasis on today is carried by a 45° hatch as well as a darker fill: two
+ * channels, so it survives greyscale and colour-blindness. Today rather than
+ * the tallest bar, because a mark that moves for reasons the reader cannot see
+ * is worse than no mark.
  */
 
-const BAR_W = 40;
-const GAP = 26;
-const PLOT_H = 140;
-
-/** Four gridlines, matching the reference's $0 / $2000 / $3000 / $4000. */
+const PLOT_H = 184;
 const TICKS = 4;
+
+/**
+ * Bar fill, measured against the white card: 3.94:1.
+ *
+ * The previous fill was --abhi-mint-100 at 1.10:1, which is why the bars read
+ * as ghosts of themselves in a screenshot. Marks are not text and do not owe
+ * 4.5:1, but they do have to be visible.
+ */
+const BAR = 'var(--chart-bar)';
+const BAR_TODAY = 'var(--chart-bar-today)';
 
 function niceCeiling(max: number): number {
   if (max <= 0) return 4;
-  const step = Math.pow(10, Math.floor(Math.log10(max / TICKS)));
+  const step = Math.pow(10, Math.floor(Math.log10(Math.max(max / TICKS, 1))));
   for (const m of [1, 2, 2.5, 5, 10]) {
     const candidate = step * m * TICKS;
     if (candidate >= max) return candidate;
@@ -39,18 +45,22 @@ function niceCeiling(max: number): number {
   return step * 10 * TICKS;
 }
 
-function dayLabel(iso: string): string {
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function parse(iso: string): Date | null {
   const d = new Date(`${iso}T00:00:00`);
-  return Number.isNaN(d.getTime())
-    ? iso
-    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]!;
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function dayLabel(iso: string): string {
+  const d = parse(iso);
+  return d === null ? iso : DAYS[d.getDay()]!;
 }
 
 function fullDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return iso;
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${dayLabel(iso)}, ${d.getDate()} ${months[d.getMonth()]}`;
+  const d = parse(iso);
+  return d === null ? iso : `${DAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
 
 export function VerificationBarChart({
@@ -61,7 +71,6 @@ export function VerificationBarChart({
   /** False when retention did not cover the window — the earliest bars undercount. */
   complete: boolean;
 }) {
-  const hatchId = useId();
   const [hover, setHover] = useState<number | null>(null);
 
   if (buckets.length === 0) {
@@ -70,28 +79,30 @@ export function VerificationBarChart({
 
   const max = Math.max(...buckets.map((b) => b.verifications));
   const ceiling = niceCeiling(max);
+  const today = buckets.length - 1;
+  const ticks = Array.from({ length: TICKS + 1 }, (_, i) =>
+    Math.round((ceiling / TICKS) * i),
+  ).reverse();
 
-  /**
-   * Today carries the emphasis, not the tallest bar.
-   *
-   * The reference highlights a selected day. Highlighting the peak instead
-   * looked equivalent until two days tied on 12 and the mark landed on the
-   * older one — emphasis that moves for reasons the reader cannot see is
-   * worse than none. Today is what an operations console is actually about,
-   * and it never ties with itself.
-   */
-  const emphasis = buckets.length - 1;
-
-  const ticks = Array.from({ length: TICKS + 1 }, (_, i) => Math.round((ceiling / TICKS) * i)).reverse();
-  const plotW = buckets.length * BAR_W + (buckets.length - 1) * GAP;
+  const total = buckets.reduce((n, b) => n + b.verifications, 0);
+  const reused = buckets.reduce((n, b) => n + b.reused, 0);
 
   return (
     <div>
-      <div className="flex gap-5 overflow-x-auto pb-1">
-        {/* Y axis. Labels only — the rule itself is drawn in the plot. */}
+      <p className="text-cell leading-6 text-ink-500">
+        Identity checks each product asked for, by day.{' '}
+        <span className="font-medium text-ink-900">
+          {formatCount(total)} in this period, {formatCount(reused)} answered from an existing
+          record.
+        </span>{' '}
+        Today is shaded.
+      </p>
+
+      <div className="mt-5 flex gap-4">
+        {/* Y axis. Labels only; the rules themselves are drawn across the plot. */}
         <ul
-          className="flex shrink-0 flex-col justify-between text-right"
-          style={{ height: PLOT_H }}
+          className="flex shrink-0 flex-col justify-between pb-6 text-right"
+          style={{ height: PLOT_H + 24 }}
           aria-hidden="true"
         >
           {ticks.map((t) => (
@@ -101,9 +112,13 @@ export function VerificationBarChart({
           ))}
         </ul>
 
-        <div className="relative shrink-0" style={{ minWidth: plotW }}>
-          {/* Gridlines, recessive and behind the marks. */}
-          <div className="pointer-events-none absolute inset-x-0 top-0" style={{ height: PLOT_H }}>
+        {/* The plot fills the remaining width, whatever the card gives it. */}
+        <div className="relative min-w-0 flex-1">
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0"
+            style={{ height: PLOT_H }}
+            aria-hidden="true"
+          >
             {ticks.map((t, i) => (
               <span
                 key={t}
@@ -113,100 +128,116 @@ export function VerificationBarChart({
             ))}
           </div>
 
-          <svg
-            width={plotW}
-            height={PLOT_H}
-            viewBox={`0 0 ${plotW} ${PLOT_H}`}
-            className="relative block"
-            role="img"
+          <ul
+            className="relative flex items-end gap-2 sm:gap-3"
+            style={{ height: PLOT_H }}
             aria-label={`Verifications per day over the last ${buckets.length} days`}
           >
-            <defs>
-              {/* The reference's 45° white hatch on the emphasised bar. This is
-                  the non-colour channel that carries emphasis into greyscale. */}
-              <pattern
-                id={hatchId}
-                width="8"
-                height="8"
-                patternUnits="userSpaceOnUse"
-                patternTransform="rotate(45)"
-              >
-                <rect width="8" height="8" fill="var(--abhi-mint-700)" />
-                <line x1="0" y1="0" x2="0" y2="8" stroke="#ffffff" strokeOpacity="0.3" strokeWidth="2" />
-              </pattern>
-            </defs>
-
             {buckets.map((b, i) => {
-              const x = i * (BAR_W + GAP);
-              const h = ceiling === 0 ? 0 : Math.max((b.verifications / ceiling) * PLOT_H, b.verifications > 0 ? 4 : 0);
-              const emphasised = i === emphasis && b.verifications > 0;
+              const pct = ceiling === 0 ? 0 : (b.verifications / ceiling) * 100;
+              // A day with one verification must still draw something, or the
+              // chart reports it as a zero.
+              const height = b.verifications > 0 ? `max(${pct}%, 6px)` : '2px';
+              const isToday = i === today;
+              const dim = hover !== null && hover !== i;
+
               return (
-                <g
+                <li
                   key={b.date}
+                  className="group relative flex h-full min-w-0 flex-1 items-end"
                   onMouseEnter={() => setHover(i)}
                   onMouseLeave={() => setHover(null)}
+                  onFocus={() => setHover(i)}
+                  onBlur={() => setHover(null)}
+                  tabIndex={0}
                 >
-                  {/* A full-height hit target: pointing at a short bar should
-                      not require hitting a 4px sliver. */}
-                  <rect x={x} y={0} width={BAR_W} height={PLOT_H} fill="transparent" />
-                  <rect
-                    x={x}
-                    y={PLOT_H - h}
-                    width={BAR_W}
-                    height={h}
-                    rx={8}
-                    fill={emphasised ? `url(#${hatchId})` : 'var(--abhi-mint-100)'}
-                    className="transition-opacity duration-fast"
-                    opacity={hover === null || hover === i ? 1 : 0.65}
+                  {/* The value on today's bar, always. Selective by design —
+                      a number over every bar is noise, and the axis plus the
+                      tooltip already carry the rest. */}
+                  {isToday && b.verifications > 0 && (
+                    <span
+                      className="tabular pointer-events-none absolute inset-x-0 text-center text-caption font-semibold text-ink-900"
+                      style={{ bottom: `calc(${height} + 6px)` }}
+                    >
+                      {formatCount(b.verifications)}
+                    </span>
+                  )}
+
+                  <span
+                    className="block w-full rounded-t-lg transition-opacity duration-fast"
+                    style={{
+                      height,
+                      background: isToday
+                        ? `repeating-linear-gradient(45deg, ${BAR_TODAY} 0 5px, rgba(255,255,255,0.32) 5px 8px)`
+                        : BAR,
+                      opacity: dim ? 0.45 : 1,
+                    }}
                   />
-                </g>
+
+                  {/*
+                    Tooltip, anchored to the column it describes and sitting
+                    ABOVE the bar rather than across the plot.
+
+                    The previous version positioned itself in plot coordinates
+                    with only a right-hand clamp, so hovering the last bar threw
+                    the card over its neighbours — visible in the screenshot,
+                    where Thursday's tooltip covered Wednesday. Anchoring to the
+                    column removes the arithmetic entirely; the first and last
+                    columns align to their own edge so nothing leaves the card.
+                  */}
+                  {hover === i && (
+                    <div
+                      role="status"
+                      className={[
+                        'pointer-events-none absolute bottom-full z-20 mb-2 w-[132px] rounded-lg',
+                        'bg-navy-800 px-3 py-2 shadow-panel',
+                        i === 0
+                          ? 'left-0'
+                          : i === buckets.length - 1
+                            ? 'right-0'
+                            : 'left-1/2 -translate-x-1/2',
+                      ].join(' ')}
+                    >
+                      <span className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 shrink-0 rounded-full"
+                          style={{ background: BAR_TODAY }}
+                          aria-hidden="true"
+                        />
+                        <span className="tabular text-caption font-semibold text-white">
+                          {formatCount(b.verifications)} checks
+                        </span>
+                      </span>
+                      <span className="mt-1 block text-caption text-white/70">
+                        {fullDate(b.date)}
+                      </span>
+                      <span className="tabular mt-1 block text-caption text-mint-300">
+                        {formatCount(b.reused)} reused
+                      </span>
+                    </div>
+                  )}
+                </li>
               );
             })}
-          </svg>
+          </ul>
 
-          {/* X axis, 24px below the plot per the reference. */}
-          <ul className="mt-3 flex" style={{ width: plotW }}>
+          <ul className="mt-2 flex gap-2 sm:gap-3">
             {buckets.map((b, i) => (
               <li
                 key={b.date}
-                className="shrink-0 text-center text-caption text-ink-500"
-                style={{ width: BAR_W, marginRight: i === buckets.length - 1 ? 0 : GAP }}
+                className={`min-w-0 flex-1 truncate text-center text-caption ${
+                  i === today ? 'font-semibold text-ink-900' : 'text-ink-500'
+                }`}
               >
                 {dayLabel(b.date)}
               </li>
             ))}
           </ul>
-
-          {/* Tooltip — 116x72, radius 8, per the reference's Info card. */}
-          {hover !== null && (
-            <div
-              role="status"
-              className="pointer-events-none absolute z-10 w-[116px] rounded-lg bg-navy-800 px-4 py-3 shadow-panel"
-              style={{
-                left: Math.min(hover * (BAR_W + GAP) + BAR_W / 2 - 58, plotW - 116),
-                top: -14,
-              }}
-            >
-              <span className="flex items-center gap-2">
-                <span className="h-3 w-3 shrink-0 rounded-full bg-mint-500" aria-hidden="true" />
-                <span className="tabular text-caption font-medium text-white">
-                  {formatCount(buckets[hover]!.verifications)}
-                </span>
-              </span>
-              {/* Two lines, matching the reference's 116x72 Info card. The
-                  reused count is deliberately not a third line here — it is
-                  already a headline card on this screen, and the tooltip's
-                  job is the value under the cursor. */}
-              <span className="mt-1 block text-caption text-white/70">
-                {fullDate(buckets[hover]!.date)}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* The honest half. Drawing truncated buckets as fact would show a
-          downward slope that is retention, not behaviour. */}
+      {/* Drawing truncated buckets as fact would show a downward slope that is
+          retention, not behaviour. */}
       {!complete && (
         <p className="mt-4 flex items-start gap-2 border-t border-ink-100 pt-3 text-caption leading-5 text-ink-500">
           <AlertTriangle size={14} className="mt-0.5 shrink-0" />
