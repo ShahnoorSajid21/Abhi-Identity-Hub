@@ -94,14 +94,14 @@ export function AssuranceDonut({
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
           {focused === null ? (
             <>
-              <span className="tabular text-[22px] font-semibold leading-none text-ink-900">
+              <span className="tabular text-title font-semibold leading-none text-ink-900">
                 {formatCount(total)}
               </span>
               <span className="mt-1 text-caption text-ink-500">customers</span>
             </>
           ) : (
             <>
-              <span className="tabular text-[22px] font-semibold leading-none text-ink-900">
+              <span className="tabular text-title font-semibold leading-none text-ink-900">
                 {formatPercent(focused.fraction)}
               </span>
               <span className="mt-1 text-caption text-ink-500">{LEVELS[focused.level].label}</span>

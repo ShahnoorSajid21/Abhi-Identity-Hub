@@ -49,7 +49,7 @@ export function TechnicalDetail({ children }: { children: ReactNode }) {
       </button>
 
       {open && (
-        <div className="mt-2 rounded-control border border-ink-200 bg-ink-50 p-4 font-mono text-[12px] leading-5 text-ink-700">
+        <div className="mt-2 rounded-control border border-ink-200 bg-ink-50 p-4 font-mono text-caption leading-5 tracking-normal text-ink-700">
           {children}
         </div>
       )}
@@ -76,7 +76,7 @@ export function CopyableId({ value, onCopied }: { value: string; onCopied?: () =
       onClick={() => {
         void navigator.clipboard?.writeText(value).then(() => onCopied?.());
       }}
-      className="inline-flex items-center gap-1.5 rounded px-1 transition-colors duration-fast hover:bg-ink-200"
+      className="inline-flex items-center gap-1.5 rounded px-1 font-mono transition-colors duration-fast hover:bg-ink-200"
     >
       {shortenId(value)}
       <Copy size={12} className="text-ink-500" />

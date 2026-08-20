@@ -48,13 +48,27 @@
   /* ------------------------------------------------------------------ */
   /* Neutrals — for type and rules INSIDE white cards                    */
   /* ------------------------------------------------------------------ */
-  --slate-900: #0f172a;
-  --slate-700: #334155;
-  --slate-500: #64748b;
-  --slate-300: #cbd5e1;
-  --slate-200: #e2e8f0;
-  --slate-100: #f1f5f9;
-  --slate-50: #f8fafc;
+  /**
+   * Locked to the brand navy's hue, 226°.
+   *
+   * These were Tailwind's stock slate, which drifts from 222° at its darkest
+   * to 210° at its lightest — so the surfaces a viewer sees most sat 16° off
+   * the ground they float on. Adjacent to the brand by luck rather than by
+   * decision, and a neutral that was inherited rather than chosen is visible
+   * even when nobody can name why.
+   *
+   * Same lightness values, hue pinned to 226°, saturation tuned per step. The
+   * three text steps gained contrast on white in the process — 17.85 → 18.10,
+   * 10.35 → 10.92, and 4.76 → 5.05 for the secondary text that sat closest to
+   * the 4.5:1 floor. The four surface steps are unchanged to the eye.
+   */
+  --slate-900: #101528;
+  --slate-700: #343c55;
+  --slate-500: #666e8a;
+  --slate-300: #ccd1e1;
+  --slate-200: #e1e4ef;
+  --slate-100: #f1f3f8;
+  --slate-50: #f8f9fc;
 
   /* ------------------------------------------------------------------ */
   /* Semantic — the four decisions. Used nowhere else.                   */

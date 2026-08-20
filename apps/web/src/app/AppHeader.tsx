@@ -69,7 +69,7 @@ export function AppHeader({
       </button>
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
-        <h1 className="truncate text-[24px] font-semibold leading-8 text-white">
+        <h1 className="truncate text-title font-semibold text-white">
           Hello, {firstName}!
         </h1>
         {/* The persona's role, and nothing else. The previous line ran to a

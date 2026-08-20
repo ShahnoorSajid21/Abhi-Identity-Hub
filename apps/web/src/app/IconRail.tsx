@@ -84,7 +84,7 @@ function RailLink({ item, onNavigate }: { item: RailItem; onNavigate: () => void
         {typeof item.count === 'number' && item.count > 0 && (
           <span
             aria-hidden="true"
-            className={`tabular absolute -right-1 -top-0.5 min-w-[18px] rounded-pill px-1 text-center text-[10px] font-semibold leading-[16px] ring-2 ring-navy-800 ${BADGE_TONE[item.tone ?? 'neutral']}`}
+            className={`tabular absolute -right-1 -top-0.5 min-w-[18px] rounded-pill px-1 text-center text-caption font-semibold leading-[16px] tracking-normal ring-2 ring-navy-800 ${BADGE_TONE[item.tone ?? 'neutral']}`}
           >
             {item.count > 99 ? '99+' : formatCount(item.count)}
           </span>

@@ -5,6 +5,16 @@
 @import '@fontsource/inter/700.css';
 @import '@fontsource/inter/800.css';
 
+/*
+ * JetBrains Mono, for machine values only — subject ids, merkle roots, case
+ * references. tailwind.config.js has declared this face since the rebuild and
+ * it was never loaded, so every hash in the app fell back to whatever mono the
+ * machine happened to have. A 64-character ledger root is the one thing on
+ * these screens that must not look like prose.
+ */
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+
 @import './tokens.css';
 
 @tailwind base;
