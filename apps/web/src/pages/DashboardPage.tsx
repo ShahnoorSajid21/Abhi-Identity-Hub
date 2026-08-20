@@ -5,14 +5,14 @@ import {
   BadgeCheck,
   CalendarClock,
   CalendarDays,
+  ClipboardList,
   Inbox,
   Recycle,
   Snowflake,
-  Wallet,
 } from 'lucide-react';
 import { directory } from '../lib/api.ts';
 import { useApi } from '../lib/useApi.ts';
-import { formatCount, formatPercent, formatPkr, formatRelative } from '../lib/format.ts';
+import { formatCount, formatPercent, formatRelative } from '../lib/format.ts';
 import { EMPTY, NOTES, PRODUCTS } from '../copy/strings.ts';
 import { AssuranceDonut } from '../components/AssuranceDonut.tsx';
 import { VerificationBarChart } from '../components/VerificationBarChart.tsx';
@@ -107,23 +107,38 @@ export function DashboardPage() {
               : `${formatPercent(d.reuseRate)} of today's requests`
           }
         />
-        {/* No delta chip on any card here, deliberately. GET /dashboard/summary
-            carries no prior period, and a share-of-total dressed up with an
-            up-arrow would read as "up 100% on last month" — which nothing in
-            this system knows. The chip returns when the endpoint does. */}
+        {/* The backlog, not a money figure.
+
+            This slot used to read "Spend avoided today — PKR 600 / PKR 0
+            spent". Both numbers were correct and the pairing was not: spend is
+            booked only when a rail runs, and a verification decides without
+            buying anything, so an untouched queue reads as free. The card
+            therefore implied an infinite return from modelled unit costs that
+            Finance has not signed.
+
+            Waiting work is the number an operations lead actually opens this
+            screen for, it is measured rather than modelled, and it completes
+            the row: how many customers we have confirmed, how many we waved
+            through today, and how much is still queued. The cost of clearing
+            that queue now sits on the queue screen, where it is operational
+            context instead of a headline claim. */}
         <KpiCard
-          label="Spend avoided today"
-          figure={formatPkr(d.spendAvoidedTodayPkr)}
-          icon={Wallet}
-          caption={`${formatPkr(d.spendTodayPkr)} actually spent`}
+          label="Waiting on a check"
+          figure={formatCount(d.pendingRequests)}
+          icon={ClipboardList}
+          to="/queue"
+          caption={
+            d.pendingRequests === 0
+              ? 'Nothing waiting'
+              : `${formatCount(d.queueCounts.STEP_UP)} step-ups · ${formatCount(d.queueCounts.FULL_KYC)} full onboardings`
+          }
         />
       </div>
 
-      {/* Money on this screen is modelled, and says so. The unit costs behind it
-          are placeholder grid points awaiting Finance. */}
-      <p className="mt-3 text-caption text-white/70">{NOTES.costsAreModelled}</p>
-
       {/* Row 2 — the wide chart beside the composition donut. */}
+      {/* No modelled-cost note here any more: every figure on this screen is now
+          a count of something that happened, so there is nothing to caveat.
+          The note travels with the money, which lives on the queue. */}
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         <section className="card p-5 lg:col-span-2">
           <div className="flex flex-wrap items-center justify-between gap-3">

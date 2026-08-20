@@ -238,6 +238,12 @@ export interface DashboardSummary {
   reuseRate: number;
   spendTodayPkr: number;
   spendAvoidedTodayPkr: number;
+  /** Individual checks the outstanding queue still has to run. */
+  pendingChecks: number;
+  /** What those checks will cost once actioned. Modelled, like every figure here. */
+  pendingCostPkr: number;
+  /** Queue entries carrying that work — step-ups and full onboardings. */
+  pendingRequests: number;
   /** Always true here. The unit costs are placeholders pending Finance. */
   costsAreModelled: boolean;
   ledgerMode: string;

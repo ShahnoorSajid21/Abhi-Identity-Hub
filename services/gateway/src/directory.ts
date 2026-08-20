@@ -163,6 +163,28 @@ export function buildDirectoryRoutes(deps: DirectoryDeps): {
     const railTotal = metrics.rails.callsMade + metrics.rails.callsAvoided;
     const queue = presentation.queue();
 
+    /*
+     * What the outstanding queue will cost once somebody actions it.
+     *
+     * Without this the dashboard reads "PKR X avoided, PKR 0 spent", which
+     * looks like an infinite return and is the first thing a Finance reader
+     * will pull apart. Spend is only booked when a rail actually runs — a
+     * verification decides, it does not buy anything — so a queue full of
+     * step-ups shows as free until the moment it isn't.
+     *
+     * Counting STEP_UP and FULL_KYC only: an ALLOW has nothing left to run,
+     * and a DENY stops the application, so neither carries a future cost.
+     */
+    let pendingChecks = 0;
+    let pendingCostPkr = 0;
+    for (const request of queue) {
+      if (request.decision !== 'STEP_UP' && request.decision !== 'FULL_KYC') continue;
+      for (const method of request.missingMethods) {
+        pendingChecks += 1;
+        pendingCostPkr += DEFAULT_RAIL_COSTS[method].unitCostPkr;
+      }
+    }
+
     return {
       status: 200,
       body: {
@@ -180,6 +202,12 @@ export function buildDirectoryRoutes(deps: DirectoryDeps): {
         // ([OPEN-3]). The UI must present them as modelled, not measured.
         spendTodayPkr: metrics.rails.costSpentPkr,
         spendAvoidedTodayPkr: metrics.rails.costAvoidedPkr,
+        /** Checks the outstanding queue still has to run, and what they cost. */
+        pendingChecks,
+        pendingCostPkr,
+        pendingRequests: queue.filter(
+          (r) => r.decision === 'STEP_UP' || r.decision === 'FULL_KYC',
+        ).length,
         costsAreModelled: true,
         ledgerMode: metrics.ledgerMode,
       },
