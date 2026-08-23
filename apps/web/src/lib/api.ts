@@ -154,6 +154,63 @@ export interface HealthResponse {
   ts: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Employer bulk upload                                                */
+/* ------------------------------------------------------------------ */
+
+export type EmployerBulkBucket = 'ready' | 'oneCheck' | 'full' | 'blocked';
+
+/** Policy reasons, plus the two states that never reached a policy decision. */
+export type EmployerBulkReason = DecisionReason | 'INVALID_CNIC' | 'NOT_EMPLOYED';
+
+/**
+ * One uploaded employee.
+ *
+ * The CNIC arrives masked from the gateway and is never unmasked here — this
+ * row is rendered in a table and exported to CSV, and neither should carry a
+ * Pakistani citizen's primary identifier.
+ */
+export interface EmployerBulkRow {
+  cnicMasked: string;
+  subjectId: string | null;
+  bucket: EmployerBulkBucket;
+  reason: EmployerBulkReason;
+  currentAssurance: AssuranceLevel | null;
+  requiredAssurance: AssuranceLevel;
+  missingMethods: VerificationMethod[];
+  ageDays: number | null;
+  costFromScratch: number;
+  costWithLedger: number;
+}
+
+/**
+ * Upload economics, priced by the gateway against its live rail table.
+ *
+ * The console does not compute these. It used to keep its own copy of the unit
+ * costs, which meant the screen could quietly disagree with /metrics.
+ */
+export interface EmployerBulkCosts {
+  perHeadPkr: number;
+  withoutLedgerPkr: number;
+  withLedgerPkr: number;
+  savedPkr: number;
+  unitCostPkr: Record<string, number>;
+  modelled: true;
+}
+
+export interface EmployerBulkResult {
+  total: number;
+  activateNow: string[];
+  /** STEP_UP — already known to ABHI, short of what this product needs. */
+  oneCheck: string[];
+  needsOnboarding: string[];
+  denied: string[];
+  invalid: string[];
+  unauthorised: string[];
+  rows: EmployerBulkRow[];
+  costs: EmployerBulkCosts;
+}
+
 export const api = {
   health: (signal?: AbortSignal) =>
     request<HealthResponse>('GET', '/health', undefined, signal ? { signal } : {}),
@@ -222,14 +279,7 @@ export const api = {
     request<unknown>('POST', '/kyc/shred', input),
 
   employerBulkLookup: (cnics: string[]) =>
-    request<{
-      total: number;
-      activateNow: string[];
-      needsOnboarding: string[];
-      denied: string[];
-      invalid: string[];
-      unauthorised: string[];
-    }>('POST', '/employer/bulk-lookup', { cnics }),
+    request<EmployerBulkResult>('POST', '/employer/bulk-lookup', { cnics }),
 };
 
 /* ------------------------------------------------------------------ */

@@ -12,6 +12,7 @@ import {
 } from '@abhi/kyc-registry';
 import { ATTRIBUTE_NAMES, ATTRIBUTE_SET_ID, demoAttributes, merkleRootHex } from '@abhi/merkle';
 import { harness, a2Attributes, CNIC_WALLET, CNIC_EXPIRY_OK } from '../fixture.ts';
+import { redact, scrubString } from '../../services/gateway/src/logging.ts';
 
 const SUBJECT = 'a'.repeat(64);
 const KNOWN = [...ATTRIBUTE_NAMES];
@@ -270,5 +271,77 @@ describe('SEC-10 · consent scope validated against the policy ceiling at grant 
     const audit = await getAuditTrail(store, memoryContext(), SUBJECT);
     const grant = audit.find((e) => e.action === 'CONSENT_GRANT');
     assert.deepEqual(grant?.attributesDisclosed, ['profession', 'verisys_match']);
+  });
+});
+
+// ===========================================================================
+describe('SEC-15 · log redaction covers the CNIC format that actually arrives', () => {
+  /*
+   * The redactor matched `\d{13,}` only, so `6110112345678` was masked and
+   * `61101-1234567-8` sailed through. The dashed form is the one Pakistani
+   * systems use — the Product Manual specifies `00000-0000000-0` on the CNIC
+   * entry screen (Part Two §9.1) — and two live GET endpoints take the CNIC in
+   * a query string that the request logger writes out verbatim as `path`.
+   *
+   * No coding mistake was needed to reach this. One customer lookup wrote a
+   * citizen's primary identifier to stdout.
+   */
+  test('dashed and spaced CNICs are redacted', () => {
+    for (const raw of ['61101-1234567-8', '35202-1234567-1', '61101 1234567 8']) {
+      assert.equal(scrubString(raw), '[REDACTED-ID]', `${raw} must not survive redaction`);
+    }
+  });
+
+  test('a dashed CNIC in a request path is redacted', () => {
+    // This is the exact shape the request logger emits for GET /kyc/history.
+    const logged = redact({ level: 'info', path: '/kyc/history?cnic=61101-1234567-8' }) as {
+      path: string;
+    };
+    assert.equal(logged.path, '/kyc/history?cnic=[REDACTED-ID]');
+    assert.ok(!scanTextForPII(logged.path.replace(/-/g, '')));
+  });
+
+  test('undashed CNICs are still redacted', () => {
+    assert.equal(scrubString('6110112345678'), '[REDACTED-ID]');
+    assert.equal(
+      (redact({ path: '/audit/events?cnic=6110112345678' }) as { path: string }).path,
+      '/audit/events?cnic=[REDACTED-ID]',
+    );
+  });
+
+  /*
+   * The other half of the fix. Lifting hex identifiers out of the scrub is
+   * what lets the digit-run rule stay aggressive without mangling the values
+   * operators actually correlate logs by.
+   */
+  test('subject IDs survive redaction, including inside a path', () => {
+    const subjectId = 'a1b2c3d4'.repeat(8);
+    assert.equal(scrubString(subjectId), subjectId);
+    assert.equal(
+      scrubString(`/customers/${subjectId}/history`),
+      `/customers/${subjectId}/history`,
+    );
+
+    // A 64-hex subjectId containing a 13-digit run must not be mangled.
+    const digity = `1234567890123${'abcdef'.repeat(9)}abcdefghi`.slice(0, 64);
+    const hex = digity.replace(/[g-z]/g, '0');
+    assert.equal(scrubString(`/customers/${hex}/history`), `/customers/${hex}/history`);
+  });
+
+  test('ordinary log text is left alone', () => {
+    for (const benign of [
+      'in 5 minutes the job ran for 12 seconds',
+      '2026-08-23T15:23:04Z',
+      'PKR 1,204,000 spent',
+      'cohort seeded: 1204 records',
+    ]) {
+      assert.equal(scrubString(benign), benign, `${benign} should not be redacted`);
+    }
+  });
+
+  test('key-based denial still applies on top of value scrubbing', () => {
+    const out = redact({ cnic: '61101-1234567-8', note: 'ok' }) as Record<string, unknown>;
+    assert.equal(out['cnic'], '[REDACTED]');
+    assert.equal(out['note'], 'ok');
   });
 });

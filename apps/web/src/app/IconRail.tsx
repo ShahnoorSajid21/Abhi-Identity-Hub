@@ -138,29 +138,43 @@ export function IconRail({ open, onClose }: { open: boolean; onClose: () => void
           <AbhiMark className="h-11 w-11" />
         </Link>
 
-        <nav
-          aria-label="Main"
-          className="flex w-16 flex-col items-center gap-0 rounded-rail bg-navy-800 py-1.5 shadow-panel ring-1 ring-inset ring-navy-600"
-        >
-          <ul className="flex flex-col items-center">
-            {PRIMARY.map((item) => (
-              <RailLink key={item.to} item={item} onNavigate={onClose} />
-            ))}
-          </ul>
-        </nav>
+        {/*
+          One rail, full height.
 
-        {/* The reference parks a sign-out control and the account avatar at the
-            foot of the column. Only the avatar is carried across.
+          The pill used to be sized by its seven links, which left it ending a
+          third of the way down a 900px viewport with a long empty gutter
+          beneath and the avatar floating alone at the bottom — two objects
+          adrift in a column rather than one piece of furniture. It now grows
+          with `flex-1`, and the avatar is parked inside its foot, so the rail
+          reads as a single edge to the app at any height.
 
-            There is deliberately NO sign-out button. This POC has no
-            authentication — identity arrives as X-ABHI-MSP / X-ABHI-Role
-            headers and OAuth2 is deferred to Sprint 9 (GAP-03). A sign-out
-            control would therefore have nothing to sign out of, and shipping
-            one that quietly does nothing is how a demo audience comes away
-            believing the POC has access control it does not have. The avatar
-            below switches persona, which is the real, working mechanism. */}
-        <div className="mt-auto flex flex-col items-center gap-5">
-          <RailAvatar />
+          The links stay grouped at the top rather than being distributed down
+          the full height: navigation is scanned as a list, and 90px of air
+          between adjacent icons would make it a search instead.
+
+          There is deliberately NO sign-out control. This POC has no
+          authentication — identity arrives as X-ABHI-MSP / X-ABHI-Role headers
+          and OAuth2 is deferred to Sprint 9 (GAP-03). A sign-out button would
+          have nothing to sign out of, and shipping one that quietly does
+          nothing is how a demo audience comes away believing the POC has
+          access control it does not have. The avatar switches persona, which
+          is the real, working mechanism.
+        */}
+        <div className="flex w-16 flex-1 flex-col items-center rounded-rail bg-navy-800 py-1.5 shadow-panel ring-1 ring-inset ring-navy-600">
+          <nav aria-label="Main" className="w-full">
+            <ul className="flex flex-col items-center">
+              {PRIMARY.map((item) => (
+                <RailLink key={item.to} item={item} onNavigate={onClose} />
+              ))}
+            </ul>
+          </nav>
+
+          <div className="mt-auto flex flex-col items-center pb-1 pt-6">
+            {/* Separates navigation from identity. They are different kinds of
+                control and should not read as an eighth nav item. */}
+            <span className="mb-4 h-px w-7 bg-navy-600" aria-hidden="true" />
+            <RailAvatar />
+          </div>
         </div>
       </div>
     </>

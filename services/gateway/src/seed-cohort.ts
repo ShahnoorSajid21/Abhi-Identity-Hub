@@ -332,3 +332,38 @@ export async function seedCohort(
 
   return { registered, frozen, byLevel };
 }
+
+/**
+ * The sample employer file the console offers as a demo upload.
+ *
+ * Lives here rather than inline in the route because the bootstrap also needs
+ * it: the employment register has to be seeded with exactly these CNICs, or
+ * the SEC-05 roster gate is live but denies everything, which on screen is
+ * indistinguishable from the gate being broken.
+ *
+ * Two thirds are already on ABHI's books and one third are genuinely new — an
+ * employer whose entire workforce was already a customer would not be a
+ * realistic upload, and the triage bar would have nothing to show.
+ *
+ * Deterministic in `size`, and a prefix relation holds: the list for a smaller
+ * size is a subset of the list for a larger one. That is what lets the
+ * bootstrap seed once at MAX_SAMPLE_LIST and cover every size the console asks
+ * for.
+ */
+export const MAX_SAMPLE_LIST = 2000;
+
+export function sampleEmployerList(now: Date, size: number): string[] {
+  const n = Math.min(MAX_SAMPLE_LIST, Math.max(1, size));
+  const known = planCohort(now)
+    .slice(0, Math.floor(n * 0.7))
+    .map((s) => s.cnic);
+
+  const unknown: string[] = [];
+  for (let i = 0; unknown.length < n - known.length; i += 1) {
+    const area = 34000 + (i % 900);
+    const serial = String(2_000_000 + i * 7919).slice(0, 7);
+    unknown.push(`${area}-${serial}-${i % 10}`);
+  }
+
+  return [...known, ...unknown];
+}

@@ -6,6 +6,7 @@ import { SoftwareHsm } from '../services/gateway/src/hsm.ts';
 import { Vault, MemoryVaultStore } from '../services/gateway/src/vault.ts';
 import { MockRails, MockECib } from '../services/gateway/src/rails.ts';
 import { KycGatewayService } from '../services/gateway/src/service.ts';
+import type { EmploymentRegister } from '../services/gateway/src/security.ts';
 
 export interface Harness {
   svc: KycGatewayService;
@@ -26,7 +27,15 @@ export const CNIC_WALLET = '61101-1234567-8';
 export const CNIC_FRESH = '42201-7654321-1';
 export const CNIC_EMPLOYER = '35202-1122334-5';
 
-export function harness(): Harness {
+/**
+ * Build a gateway over in-memory everything.
+ *
+ * `employment` is optional because most suites do not exercise the SEC-05
+ * roster gate. Pass one to test it — and note that the gateway refuses to
+ * construct WITHOUT one when NODE_ENV=production, which is the point of the
+ * gate being optional here and mandatory there.
+ */
+export function harness(opts: { employment?: EmploymentRegister } = {}): Harness {
   const store = new MemoryStateStore();
   const ledger = new SimulatedLedger(store);
   const hsm = SoftwareHsm.fromSeeds('ABHI-KYC-DEMO-PEPPER-v1', 'ABHI-KYC-DEMO-KEK-v1', 1);
@@ -35,7 +44,14 @@ export function harness(): Harness {
   const rails = new MockRails();
   const ecib = new MockECib();
 
-  const svc = new KycGatewayService({ ledger, vault, hsm, rails, ecib });
+  const svc = new KycGatewayService({
+    ledger,
+    vault,
+    hsm,
+    rails,
+    ecib,
+    ...(opts.employment === undefined ? {} : { employment: opts.employment }),
+  });
 
   return {
     svc,

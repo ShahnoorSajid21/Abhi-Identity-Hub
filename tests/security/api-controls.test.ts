@@ -365,3 +365,160 @@ describe('SEC-06 · controls applied end to end over HTTP', () => {
     }
   });
 });
+
+// ===========================================================================
+describe('SEC-16 · the roster gate is reachable over HTTP', () => {
+  /*
+   * The gate was written, unit-tested and reported IMPLEMENTED by the
+   * conformance audit — and could not engage on the only surface a caller can
+   * reach. POST /employer/bulk-lookup called the service with no employerId at
+   * all, so with a register configured every request failed, and without one
+   * (the configuration the bootstrap actually shipped) the endpoint answered
+   * "is this CNIC known to ABHI?" for any CNIC submitted.
+   *
+   * These tests drive real HTTP, because that is where the defect lived. The
+   * service-level tests above passed throughout.
+   */
+  const startWithRoster = async (): Promise<{
+    server: Server;
+    base: string;
+    h: ReturnType<typeof harness>;
+  }> => {
+    const employment = new EmploymentRegister();
+    // The employer employs CNIC_WALLET. It does NOT employ CNIC_FRESH.
+    employment.assert('EMP-1', '6110112345678');
+
+    const h = harness({ employment });
+    for (const cnic of [CNIC_WALLET, CNIC_FRESH]) {
+      await h.svc.register(h.bank(), {
+        cnic,
+        attributes: a2Attributes(),
+        originProduct: 'WALLET',
+        cnicExpiryAt: CNIC_EXPIRY_OK,
+      });
+    }
+
+    const server = createGateway({ service: h.svc, logRequests: false, enableRateLimit: false });
+    await new Promise<void>((r) => server.listen(0, r));
+    const addr = server.address();
+    if (addr === null || typeof addr === 'string') throw new Error('no address');
+    return { server, base: `http://127.0.0.1:${addr.port}`, h };
+  };
+
+  const lookup = (base: string, cnics: string[], employerId?: string) =>
+    fetch(`${base}/employer/bulk-lookup`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        ...(employerId === undefined ? {} : { 'x-abhi-employer': employerId }),
+      },
+      body: JSON.stringify({ cnics }),
+    });
+
+  test('an employer cannot read a CNIC it does not employ', async () => {
+    const { server, base } = await startWithRoster();
+    try {
+      const res = await lookup(base, [CNIC_WALLET, CNIC_FRESH], 'EMP-1');
+      assert.equal(res.status, 200);
+      const body = (await res.json()) as {
+        activateNow: string[];
+        unauthorised: string[];
+        needsOnboarding: string[];
+      };
+
+      assert.deepEqual(body.activateNow, [CNIC_WALLET]);
+      // CNIC_FRESH is a real, verified A2 customer. The employer must not be
+      // able to learn that, so it comes back unauthorised rather than ready.
+      assert.deepEqual(body.unauthorised, [CNIC_FRESH]);
+      assert.equal(body.needsOnboarding.length, 0);
+    } finally {
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
+
+  test('an unauthorised CNIC is indistinguishable from an unknown one', async () => {
+    const { server, base } = await startWithRoster();
+    try {
+      // CNIC_FRESH exists at ABHI; this one does not. Both are outside the
+      // roster, and both must produce exactly the same shape of answer.
+      const known = (await (await lookup(base, [CNIC_FRESH], 'EMP-1')).json()) as {
+        rows: { bucket: string; reason: string; currentAssurance: string | null }[];
+      };
+      const absent = (await (await lookup(base, ['42101-9999999-9'], 'EMP-1')).json()) as {
+        rows: { bucket: string; reason: string; currentAssurance: string | null }[];
+      };
+
+      assert.deepEqual(
+        known.rows.map((r) => [r.bucket, r.reason, r.currentAssurance]),
+        absent.rows.map((r) => [r.bucket, r.reason, r.currentAssurance]),
+        'a verified customer outside the roster must look identical to a stranger',
+      );
+      assert.equal(known.rows[0]?.reason, 'NOT_EMPLOYED');
+    } finally {
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
+
+  test('the employer id comes from the caller, never from the body', async () => {
+    const { server, base } = await startWithRoster();
+    try {
+      // Present as EMP-2 but claim EMP-1 in the payload. The claim must not
+      // be honoured — otherwise the roster check is a formality any employer
+      // can step around by naming another.
+      const res = await fetch(`${base}/employer/bulk-lookup`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-abhi-employer': 'EMP-2' },
+        body: JSON.stringify({ cnics: [CNIC_WALLET], employerId: 'EMP-1' }),
+      });
+
+      const body = (await res.json()) as { activateNow: string[]; unauthorised: string[] };
+      assert.deepEqual(body.activateNow, [], 'EMP-2 must not inherit EMP-1 roster');
+      assert.deepEqual(body.unauthorised, [CNIC_WALLET]);
+    } finally {
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
+});
+
+// ===========================================================================
+describe('SEC-17 · per-subject rate limiting covers every identifier', () => {
+  /*
+   * The limiter keyed on `cnic` alone. But /kyc/verify accepts `subjectId` and
+   * PREFERS it, the operations console sends nothing else, and the customer
+   * read routes are /customers/{subjectId}/... — so enumeration by subject id,
+   * the form an attacker would actually use, was unlimited.
+   */
+  test('a subjectId-keyed verify loop is rate limited', async () => {
+    const h = harness();
+    const r = await h.svc.register(h.bank(), {
+      cnic: CNIC_WALLET,
+      attributes: a2Attributes(),
+      originProduct: 'WALLET',
+      cnicExpiryAt: CNIC_EXPIRY_OK,
+    });
+
+    const server = createGateway({ service: h.svc, logRequests: false, enableRateLimit: true });
+    await new Promise<void>((res) => server.listen(0, res));
+    const addr = server.address();
+    if (addr === null || typeof addr === 'string') throw new Error('no address');
+    const base = `http://127.0.0.1:${addr.port}`;
+
+    try {
+      let limited = false;
+      for (let i = 0; i < 40; i += 1) {
+        const res = await fetch(`${base}/kyc/verify`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-abhi-msp': 'ABHILendingMSP' },
+          body: JSON.stringify({ subjectId: r.subjectId, productId: 'EWA' }),
+        });
+        if (res.status === 429) {
+          limited = true;
+          break;
+        }
+      }
+      assert.equal(limited, true, 'subjectId enumeration must hit the subject limit');
+    } finally {
+      await new Promise<void>((res) => server.close(() => res()));
+    }
+  });
+});

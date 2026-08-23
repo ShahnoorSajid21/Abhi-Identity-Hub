@@ -43,6 +43,31 @@ const fileExists = (path: string) => (): { status: Status; evidence: string } =>
     ? { status: 'IMPLEMENTED', evidence: path }
     : { status: 'MISSING', evidence: `${path} not found` };
 
+/**
+ * Every part must hold, and the first failure is reported.
+ *
+ * This exists because a single-file grep cannot tell "the control is built"
+ * from "the control is connected". SEC-05 was the worked example: the
+ * EmploymentRegister class existed, had unit tests, and this audit reported it
+ * IMPLEMENTED — while the HTTP route passed no employer id and the bootstrap
+ * constructed no register, so the gate could not engage on the only surface a
+ * caller can reach.
+ *
+ * A control is only implemented when the call site, the wiring and the
+ * mechanism are all present. Where that spans files, assert across files.
+ */
+const allOf =
+  (...checks: (() => { status: Status; evidence: string })[]) =>
+  (): { status: Status; evidence: string } => {
+    const evidence: string[] = [];
+    for (const check of checks) {
+      const r = check();
+      if (r.status !== 'IMPLEMENTED') return r;
+      evidence.push(r.evidence);
+    }
+    return { status: 'IMPLEMENTED', evidence: evidence.join(' + ') };
+  };
+
 const deferred = (why: string) => (): { status: Status; evidence: string } => ({
   status: 'DEFERRED',
   evidence: why,
@@ -323,7 +348,16 @@ const REQUIREMENTS: Requirement[] = [
   {
     id: 'R-04', area: 'Remediation', priority: 'MUST',
     requirement: 'SEC-05 — employer bulk lookup gated on a demonstrated employment relationship',
-    check: fileHas('services/gateway/src/security.ts', 'class EmploymentRegister', 'unauthorised'),
+    // Mechanism, call site AND bootstrap. See allOf() for why all three.
+    check: allOf(
+      fileHas('services/gateway/src/security.ts', 'class EmploymentRegister', 'unauthorised'),
+      // The route must take the employer from the authenticated caller.
+      fileHas('services/gateway/src/http.ts', 'caller.employerId'),
+      // The service must refuse to run without a register in production.
+      fileHas('services/gateway/src/service.ts', 'no EmploymentRegister configured'),
+      // The shipped gateway must actually construct and populate one.
+      fileHas('services/gateway/src/server.ts', 'new EmploymentRegister()', 'employment'),
+    ),
   },
   {
     id: 'R-05', area: 'Remediation', priority: 'MUST',

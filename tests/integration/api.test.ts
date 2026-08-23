@@ -188,3 +188,44 @@ describe('gateway HTTP API', () => {
     assert.ok(typeof r.json.ecibCalls === 'number');
   });
 });
+
+// ===========================================================================
+describe('history and audit reads accept a subjectId', () => {
+  /*
+   * These two endpoints are the only place in the API where a CNIC can enter a
+   * URL — browser history, referrer headers, every access log on the path. The
+   * design is explicit that identifiers travel as subject ids precisely so that
+   * cannot happen, and these were the exception.
+   *
+   * The CNIC form still works (apps/console and the OpenAPI contract use it)
+   * but subjectId is now preferred and must return the same answer.
+   */
+  test('GET /kyc/history by subjectId matches the CNIC form', async () => {
+    const byCnic = await call('GET', `/kyc/history?cnic=${encodeURIComponent(CNIC_WALLET)}`);
+    assert.equal(byCnic.status, 200);
+
+    const subjectId = byCnic.json.subjectId as string;
+    const bySubject = await call('GET', `/kyc/history?subjectId=${subjectId}`);
+
+    assert.equal(bySubject.status, 200);
+    assert.deepEqual(bySubject.json, byCnic.json);
+  });
+
+  test('GET /audit/events by subjectId matches the CNIC form', async () => {
+    const history = await call('GET', `/kyc/history?cnic=${encodeURIComponent(CNIC_WALLET)}`);
+    const subjectId = history.json.subjectId as string;
+
+    const byCnic = await call('GET', `/audit/events?cnic=${encodeURIComponent(CNIC_WALLET)}`);
+    const bySubject = await call('GET', `/audit/events?subjectId=${subjectId}`);
+
+    assert.equal(bySubject.status, 200);
+    assert.deepEqual(bySubject.json, byCnic.json);
+  });
+
+  test('neither identifier is an error, and the message names the preferred one', async () => {
+    const r = await call('GET', '/kyc/history');
+    assert.equal(r.status, 400);
+    const detail = (r.json.detail as string | null) ?? '';
+    assert.match(detail, /subjectId/, 'the error should point callers at subjectId');
+  });
+});

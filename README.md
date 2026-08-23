@@ -28,10 +28,16 @@ Run the technical nine-step walkthrough:
 npm run demo:walkthrough
 ```
 
-Run every test (202):
+Run every test (296):
 
 ```bash
 npm test
+```
+
+The console has its own 55, under vitest:
+
+```bash
+npm run test:web
 ```
 
 Seed six personas covering every decision path:
@@ -136,19 +142,25 @@ Four details are load-bearing and each has a test:
 
 | Suite | Tests | Covers |
 |---|---|---|
-| `packages/merkle` | 24 | Domain separation, odd-node promotion, 2,000-iteration property test, CNIC normalisation, pinned reference vectors |
-| `chaincode/kyc-registry` | 47 | All 11 functions, state machine, authority separation, tamper detection, chain-hash ordering |
-| `packages/policy` | 47 | Exhaustive decision table (64 combinations), step-up matrix, four-eyes policy approval, change classification |
-| `tests/security` | 75 | PII structural walk, vault AAD swap, rate limiting, idempotency, replay, request signing, employer gating, production guards |
-| `tests/integration` | 15 | Live HTTP API, security headers, error mapping |
-| `tests/e2e` | 21 | All seven required scenarios plus employer bulk and attempt caps |
+| `packages/merkle` | 36 | Domain separation, odd-node promotion, 2,000-iteration property test, CNIC normalisation, pinned reference vectors |
+| `chaincode/kyc-registry` | 53 | All 11 functions, state machine, authority separation, tamper detection, chain-hash ordering |
+| `packages/policy` | 39 | Exhaustive decision table (64 combinations), step-up matrix, four-eyes policy approval, change classification |
+| `services/gateway` | 32 | Directory reads, pending liability, daily activity, presentation indexing |
+| `tests/security` | 71 | PII structural walk, log redaction, vault AAD swap, rate limiting, idempotency, replay, request signing, employer roster gating over HTTP, e-CIB outcome, production guards |
+| `tests/integration` | 36 | Live HTTP API, security headers, error mapping |
+| `tests/e2e` | 29 | All seven required scenarios plus employer bulk and attempt caps |
+| `apps/web` | 55 | Step-up router, capture screens, decision rendering (vitest) |
 
 ```bash
-npm run test:unit         # merkle, canonical, policy, chaincode
-npm run test:security     # PII, vault AAD, rate limits, replay, signing, guards
-npm run test:integration  # live HTTP API
-npm run test:e2e          # the seven scenarios
+npm run test:unit         # merkle, canonical, policy, chaincode  (128)
+npm run test:security     # PII, redaction, vault AAD, rate limits, replay, signing, guards  (71)
+npm run test:integration  # live HTTP API  (36)
+npm run test:e2e          # the seven scenarios  (29)
+npm run test:web          # the console, under vitest  (55)
 ```
+
+`npm run verify` runs all of the above plus both type checks, the CNIC-literal
+scan, the pinned crypto vectors and the conformance audit.
 
 ---
 
@@ -174,7 +186,11 @@ Read `docs/POC_READINESS.md` before demoing. Three things remain, and none can b
 2. **The PKCS#11 HSM and PostgreSQL vault adapters are written but unexecuted** — no HSM appliance, no PostgreSQL instance. The conformance audit reports these as `UNVERIFIED`, not `IMPLEMENTED`, on purpose.
 3. **The duplicate-verification rate `r` is not measured.** It needs ABHI's historical logs. The instrumentation is built and `/metrics` exposes it; the data is not here. This is the number that decides whether the production programme is worth funding.
 
-Security posture: **9 of 12 findings remediated** with regression tests. The 3 remaining are environmental and all fail closed — the software HSM, the simulated ledger and the header-identity fallback each refuse to initialise when `NODE_ENV=production`.
+4. **[OPEN-E] The savings figure may be overstated, and nobody can yet say by how much.** This system models one thing: is the identity on file good enough for this product. Consolidated Product Manual v2 Part Two §9.3 puts a fingerprint *and* a live selfie on every EWA, ASA and SBL request — and its wording ("before the request proceeds to approval", capped at 3 attempts per day) reads like **transaction authorisation**, not customer due diligence. A per-request authentication is not reusable by anything, so any share of it counted as "avoided" is spend that would happen regardless. The alternative reading — that §9.3 is a CDD requirement — makes EWA and ASA A3 rather than the A2 configured here, which removes EWA's "zero rail calls" claim instead. Both readings change the business case; neither can be settled without Compliance. See `packages/policy/src/policies.ts`.
+
+Security posture: **13 of 16 findings remediated** with regression tests. The 3 remaining are environmental and all fail closed — the software HSM, the simulated ledger and the header-identity fallback each refuse to initialise when `NODE_ENV=production`.
+
+Four of those findings came from the end-to-end review of 23 August 2026, and three of them share a shape worth naming: **a control that was built, tested and reported implemented, but not connected.** The employer roster gate could not engage over HTTP; the per-subject rate limit did not cover the identifier the console actually sends; the e-CIB check ran on every origination and its answer was discarded. Each had passing unit tests. The conformance audit now asserts call site, wiring and mechanism together rather than grepping for a class name — see `allOf()` in `scripts/conformance-audit.ts`.
 
 Full findings: `docs/SECURITY_AUDIT.md` · `docs/COMPLIANCE_AUDIT.md` · `docs/GAP_ANALYSIS.md`
 

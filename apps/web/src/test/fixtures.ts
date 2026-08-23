@@ -34,7 +34,12 @@ function result(over: Partial<VerifyResult>, dec: Partial<VerifyDecision>): Veri
     proof: null,
     railCallsAvoided: 0,
     costAvoidedPkr: 0,
+    // A clean credit check by default. Fixtures that need an adverse record
+    // override `eCib` — the two must be able to differ, because the whole
+    // point of carrying the outcome is that "ran" and "passed" are not
+    // the same fact.
     eCibCalled: true,
+    eCib: { called: true, clean: true, ref: 'ECIB:fixture' },
     ...over,
   };
 }

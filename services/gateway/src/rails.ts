@@ -85,6 +85,18 @@ export class MockRails {
     };
   }
 
+  /**
+   * The unit costs this instance is actually charging.
+   *
+   * Exposed so callers that need to price a hypothetical journey — "what would
+   * this upload have cost?" — read the same table the real calls are billed
+   * against. The console used to keep its own copy of these numbers, which is
+   * a constant waiting to disagree with the one /metrics reports.
+   */
+  get costs(): Readonly<Record<VerificationMethod, RailCost>> {
+    return this.#costs;
+  }
+
   reset(): void {
     this.#metrics = {
       callsMade: 0,
@@ -187,6 +199,8 @@ export class MockRails {
  */
 export class MockECib {
   #calls = 0;
+  /** Subjects this mock reports an adverse credit record for. */
+  readonly #adverse = new Set<string>();
 
   get calls(): number {
     return this.#calls;
@@ -194,13 +208,26 @@ export class MockECib {
 
   reset(): void {
     this.#calls = 0;
+    this.#adverse.clear();
+  }
+
+  /**
+   * Mark a subject as carrying an adverse credit record.
+   *
+   * The mock answered `clean: true` unconditionally, which meant the not-clean
+   * branch could not be reached from a test — and the gateway was discarding
+   * the answer anyway, so nothing noticed. A control whose failure path cannot
+   * be exercised is a control nobody has checked.
+   */
+  markAdverse(subjectId: string): void {
+    this.#adverse.add(subjectId);
   }
 
   check(subjectId: string): Promise<{ subjectId: string; clean: boolean; ref: string }> {
     this.#calls += 1;
     return Promise.resolve({
       subjectId,
-      clean: true,
+      clean: !this.#adverse.has(subjectId),
       ref: `ECIB:${randomUUID().slice(0, 8)}`,
     });
   }

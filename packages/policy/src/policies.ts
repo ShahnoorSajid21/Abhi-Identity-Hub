@@ -13,6 +13,48 @@ import type { ProductPolicy } from '@abhi/types';
  * lifecycle approval. The DECISION is still written to the ledger as an
  * AuditEvent carrying policyId, so the ledger remains the authoritative record
  * of what rule was in force when.
+ *
+ * ---------------------------------------------------------------------------
+ * [OPEN-E] — UNRESOLVED, AND IT MOVES THE BUSINESS CASE. Raised by review,
+ * 23 August 2026. Compliance and the product owner must settle it before
+ * these numbers are shown to anyone as a forecast.
+ *
+ * EWA and ASA are set to A2 below — VERISYS + DOC_AUTH + BIOMETRIC_1TO1, no
+ * liveness. Consolidated Product Manual v2 Part Two §9.3 says otherwise:
+ *
+ *   "Fingerprint and live-selfie face verification apply across EWA, ASA and
+ *    SBL — documented once here rather than per product."
+ *
+ * Read as an identity requirement, that is A3 for all three products, and the
+ * A2 defaults here are too low. Read that way, the wallet journey (which
+ * produces A2) would never satisfy EWA on its own, every EWA request would
+ * answer STEP_UP for one liveness check, and the headline "instant, zero rail
+ * calls" for EWA in the blueprint's product table becomes "one selfie".
+ *
+ * There is a second reading, and the review could not settle which is right
+ * from the manual alone. §9.3 sits in the Employee App chapter and describes
+ * the per-REQUEST journey: "Review Details -> Biometric Verification -> ...
+ * before the request proceeds to approval", capped at 3 attempts per day. That
+ * is transaction authorisation — proving the person asking for this money is
+ * the account holder — not customer due diligence. A per-transaction
+ * authentication is not reusable by anything, and a KYC ledger cannot avoid
+ * it. On this reading A2 is the correct CDD floor and the liveness step simply
+ * sits outside this system's scope.
+ *
+ * The distinction matters more than the levels do, because THIS CODEBASE HAS
+ * NO CONCEPT OF IT. `decide()` answers one question — is the identity on file
+ * good enough — and the rail metrics count every method it avoids as a saving.
+ * If §9.3's biometric is transaction authorisation, then some of what the
+ * demo reports as avoided cost is spend that would occur anyway, and the
+ * savings figure is overstated by whatever share of it is per-request
+ * authentication rather than per-customer verification.
+ *
+ * Deliberately NOT silently changed to A3 here. Either reading changes the
+ * numbers the programme is being sold on, and choosing between them is a
+ * Compliance and product decision, not a refactor. What the review could do
+ * without that decision is stop the ambiguity being invisible: see
+ * docs/GAP_ANALYSIS.md [OPEN-E] and the caveat carried on the savings figures.
+ * ---------------------------------------------------------------------------
  */
 
 const BASE: Omit<
@@ -30,6 +72,9 @@ const BASE: Omit<
 };
 
 export const PRODUCT_POLICIES: Readonly<Record<string, ProductPolicy>> = Object.freeze({
+  // [OPEN-E] applies to EWA and ASA: Product Manual Part Two §9.3 puts a
+  // live-selfie check on both, which is A3 if it is a CDD step. See the file
+  // header — unresolved, and it moves the savings figure.
   EWA: {
     ...BASE,
     productId: 'EWA',

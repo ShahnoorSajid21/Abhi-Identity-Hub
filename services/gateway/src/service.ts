@@ -25,6 +25,7 @@ import {
   type AssuranceLevel,
   type AuditEvent,
   type ConsentRecord,
+  type DecisionReason,
   type KYCRecord,
   type VerificationMethod,
 } from '@abhi/types';
@@ -34,6 +35,7 @@ import type { Vault, VaultPayload } from './vault.ts';
 import type { Hsm } from './hsm.ts';
 import { MockECib, MockRails } from './rails.ts';
 import type { EmploymentRegister } from './security.ts';
+import { logInfo } from './logging.ts';
 
 const KNOWN_ATTRIBUTES: readonly string[] = [...ATTRIBUTE_NAMES];
 
@@ -52,6 +54,61 @@ export interface StepUpResult {
   version: number;
   assuranceLevel: AssuranceLevel;
   methodsRun: VerificationMethod[];
+}
+
+/** Which of the four triage buckets an uploaded employee fell into. */
+export type EmployerBulkBucket = 'ready' | 'oneCheck' | 'full' | 'blocked';
+
+/**
+ * Why an employee is in the bucket they are in.
+ *
+ * `INVALID_CNIC` and `NOT_EMPLOYED` are not policy decisions — the first never
+ * resolved to a subject, the second was never looked up at all — so they sit
+ * alongside DecisionReason rather than inside it.
+ */
+export type EmployerBulkReason = DecisionReason | 'INVALID_CNIC' | 'NOT_EMPLOYED';
+
+/**
+ * One uploaded employee, as the console renders them.
+ *
+ * The CNIC is masked. The employer's own spreadsheet holds the full number;
+ * this response is for a screen, and putting a CNIC on a screen — or in the
+ * CSV that screen exports — is the thing the whole design avoids.
+ */
+export interface EmployerBulkRow {
+  cnicMasked: string;
+  /** Null when the CNIC never parsed, or was outside the employer's roster. */
+  subjectId: string | null;
+  bucket: EmployerBulkBucket;
+  reason: EmployerBulkReason;
+  currentAssurance: AssuranceLevel | null;
+  requiredAssurance: AssuranceLevel;
+  /** Methods this employee still needs. Empty for ready and blocked. */
+  missingMethods: VerificationMethod[];
+  ageDays: number | null;
+  /** What a from-scratch journey for this product would cost, in PKR. */
+  costFromScratch: number;
+  /** What it actually costs given what the ledger already holds, in PKR. */
+  costWithLedger: number;
+}
+
+/**
+ * Upload economics, computed from the gateway's own rail cost table.
+ *
+ * This lives here rather than in the console because the console previously
+ * mirrored the unit costs by hand, and a mirrored constant is a number waiting
+ * to disagree with the one the metrics endpoint reports.
+ */
+export interface EmployerBulkCosts {
+  /** PKR for a from-scratch journey per employee at this product's level. */
+  perHeadPkr: number;
+  withoutLedgerPkr: number;
+  withLedgerPkr: number;
+  savedPkr: number;
+  /** Unit cost per method, so the console can show the working. */
+  unitCostPkr: Record<string, number>;
+  /** Always true in the POC — Finance has not signed these ([OPEN-3]). */
+  modelled: true;
 }
 
 export interface VerificationInput {
@@ -73,13 +130,45 @@ export interface RegisterResult {
   costSpentPkr: number;
 }
 
+/**
+ * The e-CIB answer, carried out to the caller.
+ *
+ * e-CIB ran on every non-DENY origination already — and its return value was
+ * discarded. `eCibCalled: true` said the check happened and nothing said what
+ * it found, so a subject with an adverse credit record produced a response
+ * byte-identical to a clean one. The mock always answers clean, which is why
+ * no test noticed; swapping in the real provider would have preserved the
+ * behaviour exactly, and "the control runs" would have kept meaning "the
+ * control's answer is ignored".
+ *
+ * WHAT THIS IS NOT. A credit hit is not a KYC decision, and `decide()` is
+ * deliberately not told about it: conflating an identity judgement with a
+ * credit judgement is the most dangerous available misreading of this
+ * architecture. The ledger's answer stays "is this identity good enough for
+ * this product"; `clean: false` is the ORIGINATING PRODUCT's gate to apply on
+ * top. What changes here is only that the product can now see the answer.
+ *
+ * It is also not written to the ledger. Credit standing is point-in-time and
+ * changes; the ledger holds identity proof, which does not.
+ */
+export interface ECibOutcome {
+  called: boolean;
+  /** False means an adverse credit record. Never itself a KYC outcome. */
+  clean: boolean;
+  /** Provider reference, for the originating product's own audit. */
+  ref: string;
+}
+
 export interface VerifyResult {
   subjectId: string;
   decision: Decision;
   proof: ProofBundle | null;
   railCallsAvoided: number;
   costAvoidedPkr: number;
+  /** Retained for existing callers; `eCib` carries the answer. */
   eCibCalled: boolean;
+  /** Null only when the decision was DENY, which short-circuits origination. */
+  eCib: ECibOutcome | null;
 }
 
 export interface GatewayDeps {
@@ -112,6 +201,34 @@ export class KycGatewayService {
 
   constructor(deps: GatewayDeps) {
     this.#d = deps;
+
+    /*
+     * SEC-05 — fail closed in production when the roster gate is absent.
+     *
+     * Without an employment register, /employer/bulk-lookup answers "is this
+     * CNIC already known to ABHI?" for any CNIC submitted, which is an
+     * existence oracle over the bank's entire customer base (attack scenario
+     * S-5). The GatewayDeps comment already said production MUST supply one
+     * and that the gateway warns when it does not; neither the warning nor the
+     * refusal actually existed, so the control's absence was silent.
+     *
+     * This follows the pattern the rest of the POC already uses — SoftwareHsm,
+     * SimulatedLedger and header identity each refuse to initialise in
+     * production rather than degrade quietly.
+     */
+    if (deps.employment === undefined) {
+      if (process.env['NODE_ENV'] === 'production') {
+        throw new Error(
+          'FATAL: no EmploymentRegister configured. /employer/bulk-lookup would be an ' +
+            'unrestricted existence oracle over the customer base (SEC-05). Supply ' +
+            'GatewayDeps.employment backed by the employer portal roster.',
+        );
+      }
+      logInfo('employer roster gate disabled', {
+        control: 'SEC-05',
+        impact: 'employer bulk lookup is unrestricted; POC configuration only',
+      });
+    }
   }
 
   /** subject_id = HMAC-SHA256(pepper, normalise(CNIC)) — never leaves the HSM. */
@@ -270,10 +387,15 @@ export class KycGatewayService {
 
     // e-CIB ALWAYS runs at origination. It is a credit check, not an identity
     // check, and is never displaced by KYC reuse.
-    let eCibCalled = false;
+    //
+    // The ANSWER is kept. It used to be awaited and dropped on the floor, so
+    // an adverse credit record and a clean one produced identical responses —
+    // "never bypassed" was implemented as "always called", which is not the
+    // same claim. See ECibOutcome for why it still does not feed `decide()`.
+    let eCib: ECibOutcome | null = null;
     if (decision.outcome !== 'DENY') {
-      await this.#d.ecib.check(subjectId);
-      eCibCalled = true;
+      const r = await this.#d.ecib.check(subjectId);
+      eCib = { called: true, clean: r.clean, ref: r.ref };
     }
 
     let proof: ProofBundle | null = null;
@@ -306,7 +428,8 @@ export class KycGatewayService {
       proof,
       railCallsAvoided: after.callsAvoided - before.callsAvoided,
       costAvoidedPkr: after.costAvoidedPkr - before.costAvoidedPkr,
-      eCibCalled,
+      eCibCalled: eCib !== null,
+      eCib,
     };
   }
 
@@ -584,7 +707,20 @@ export class KycGatewayService {
   /**
    * Employer bulk lookup — the headline demo.
    *
-   * Splits an uploaded CNIC list into "activate now" and "needs onboarding".
+   * Splits an uploaded CNIC list four ways: activate now, one check away,
+   * full onboarding, and blocked.
+   *
+   * The middle bucket used to be folded into `needsOnboarding`, which made the
+   * screen understate the programme's own value. `decide` only answers
+   * FULL_KYC when there is NO record at all — an existing A0 or A1 employee
+   * answers STEP_UP. Collapsing the two reported those employees as needing
+   * the whole journey and charged the employer for it, when what they need is
+   * the one or two methods they are missing. Returning `oneCheck` separately
+   * is the difference between "768 full onboardings" and the truth.
+   *
+   * `rows` carries the per-employee detail the console needs to explain a
+   * bucket. CNICs are masked in it: this response is rendered in a table, and
+   * a full CNIC on screen is the one thing the console does not do.
    *
    * PRIVACY NOTE [OPEN-D]: this leaks, to an employer, whether a given CNIC is
    * already verified at ABHI. That is acceptable only for CNICs the employer
@@ -600,19 +736,32 @@ export class KycGatewayService {
   ): Promise<{
     total: number;
     activateNow: string[];
+    /** STEP_UP — an existing record short of what this product needs. */
+    oneCheck: string[];
     needsOnboarding: string[];
     denied: string[];
     invalid: string[];
     unauthorised: string[];
+    rows: EmployerBulkRow[];
+    costs: EmployerBulkCosts;
   }> {
     const policy = getPolicy(productId);
     if (policy === null) fail('ERR_INVALID_SCOPE', `unknown product ${productId}`);
 
     const activateNow: string[] = [];
+    const oneCheck: string[] = [];
     const needsOnboarding: string[] = [];
     const denied: string[] = [];
     const invalid: string[] = [];
     let unauthorised: string[] = [];
+    const rows: EmployerBulkRow[] = [];
+
+    // Priced from the live rail table, not a copy of it.
+    const unit = this.#d.rails.costs;
+    const costOf = (methods: readonly VerificationMethod[]): number =>
+      methods.reduce((sum, m) => sum + (unit[m]?.unitCostPkr ?? 0), 0);
+    const fullPack = REQUIRED_METHODS[policy.minAssurance];
+    const perHeadPkr = costOf(fullPack);
 
     // SEC-05 — restrict to CNICs the employer demonstrably employs. CNICs
     // outside the roster are never looked up, so the response carries no
@@ -634,12 +783,46 @@ export class KycGatewayService {
       unauthorised = split.unauthorised;
     }
 
+    /** Never the full number — see EmployerBulkRow. */
+    const mask = (raw: string): string => {
+      const digits = raw.replace(/\D/g, '');
+      if (digits.length !== 13) return '—';
+      return `${digits.slice(0, 5)}-*****-${digits.slice(12)}`;
+    };
+
+    for (const cnic of unauthorised) {
+      rows.push({
+        cnicMasked: mask(cnic),
+        subjectId: null,
+        bucket: 'blocked',
+        reason: 'NOT_EMPLOYED',
+        currentAssurance: null,
+        requiredAssurance: policy.minAssurance,
+        missingMethods: [],
+        ageDays: null,
+        costFromScratch: 0,
+        costWithLedger: 0,
+      });
+    }
+
     for (const cnic of candidates) {
       let subjectId: string;
       try {
         subjectId = await this.subjectId(cnic);
       } catch {
         invalid.push(cnic);
+        rows.push({
+          cnicMasked: mask(cnic),
+          subjectId: null,
+          bucket: 'blocked',
+          reason: 'INVALID_CNIC',
+          currentAssurance: null,
+          requiredAssurance: policy.minAssurance,
+          missingMethods: [],
+          ageDays: null,
+          costFromScratch: 0,
+          costWithLedger: 0,
+        });
         continue;
       }
 
@@ -655,12 +838,73 @@ export class KycGatewayService {
         : null;
 
       const d = decide(record, policy, ctx.timestamp);
-      if (d.outcome === 'ALLOW') activateNow.push(cnic);
-      else if (d.outcome === 'DENY') denied.push(cnic);
-      else needsOnboarding.push(cnic);
+
+      // STEP_UP and FULL_KYC are different products of work and different
+      // money. `decide` reserves FULL_KYC for "no record at all", so anything
+      // else with a gap is an employee ABHI already knows and only has to
+      // finish — which is the entire case the ledger is making.
+      let bucket: EmployerBulkBucket;
+      switch (d.outcome) {
+        case 'ALLOW':
+          bucket = 'ready';
+          activateNow.push(cnic);
+          break;
+        case 'DENY':
+          bucket = 'blocked';
+          denied.push(cnic);
+          break;
+        case 'STEP_UP':
+          bucket = 'oneCheck';
+          oneCheck.push(cnic);
+          break;
+        default:
+          bucket = 'full';
+          needsOnboarding.push(cnic);
+      }
+
+      rows.push({
+        cnicMasked: mask(cnic),
+        subjectId,
+        bucket,
+        reason: d.reason,
+        currentAssurance: d.currentAssurance,
+        requiredAssurance: policy.minAssurance,
+        missingMethods: [...d.missingMethods],
+        ageDays: d.ageDays,
+        costFromScratch: perHeadPkr,
+        // A blocked employee is not work the employer can buy their way out
+        // of, so it prices at zero rather than at the full journey.
+        costWithLedger: bucket === 'blocked' ? 0 : costOf(d.missingMethods),
+      });
     }
 
-    return { total: cnics.length, activateNow, needsOnboarding, denied, invalid, unauthorised };
+    // Priced over what would actually be run, per employee, rather than by
+    // multiplying bucket sizes by a flat rate — a STEP_UP employee missing
+    // only LIVENESS costs 20, not the 80 a full A2 pack costs.
+    const priceable = rows.filter((r) => r.bucket !== 'blocked');
+    const withoutLedgerPkr = priceable.length * perHeadPkr;
+    const withLedgerPkr = priceable.reduce((sum, r) => sum + r.costWithLedger, 0);
+
+    return {
+      total: cnics.length,
+      activateNow,
+      oneCheck,
+      needsOnboarding,
+      denied,
+      invalid,
+      unauthorised,
+      rows,
+      costs: {
+        perHeadPkr,
+        withoutLedgerPkr,
+        withLedgerPkr,
+        savedPkr: withoutLedgerPkr - withLedgerPkr,
+        unitCostPkr: Object.fromEntries(
+          Object.values(unit).map((c) => [c.method, c.unitCostPkr]),
+        ),
+        modelled: true,
+      },
+    };
   }
 
   get metrics() {

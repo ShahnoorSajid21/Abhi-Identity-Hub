@@ -60,6 +60,13 @@ export interface RequestCtx {
   correlationId: string;
   /** Values captured from a dynamic path segment, e.g. :subjectId. */
   params: Record<string, string>;
+  /**
+   * The authenticated principal.
+   *
+   * Handlers that make an authorisation decision must read it from here rather
+   * than from the body — a caller-supplied identity is not an identity.
+   */
+  caller: CallerIdentity;
 }
 
 /**
@@ -280,21 +287,76 @@ export function buildRoutes(svc: KycGatewayService): Map<string, Handler> {
     return { status: 200, body: r };
   });
 
-  routes.set('POST /employer/bulk-lookup', async ({ body, tx }) => {
-    const r = await svc.employerBulkLookup(tx, (body['cnics'] as string[]) ?? []);
+  /**
+   * Employer bulk lookup.
+   *
+   * The employer id comes from `caller`, which is the authenticated principal
+   * — the client certificate in production, the dev header shim otherwise. It
+   * is NOT read from the body.
+   *
+   * This route used to call `employerBulkLookup(tx, cnics)` with no employer
+   * at all, which meant the SEC-05 roster gate could not engage over HTTP: with
+   * a register configured every call failed, and without one — the shipped
+   * configuration — the endpoint was an unrestricted existence oracle over
+   * ABHI's entire customer base. The control existed, had tests, and was
+   * reported IMPLEMENTED by the conformance audit; it simply was not wired to
+   * the only surface a caller can reach. That is attack scenario S-5.
+   */
+  routes.set('POST /employer/bulk-lookup', async ({ body, tx, caller }) => {
+    const r = await svc.employerBulkLookup(
+      tx,
+      (body['cnics'] as string[]) ?? [],
+      'EMPLOYER_BULK',
+      caller.employerId ?? undefined,
+    );
     return { status: 200, body: r };
   });
 
-  routes.set('GET /kyc/history', async ({ query, tx }) => {
+  /*
+   * History and audit reads.
+   *
+   * These two are the only places in the API where a CNIC can enter a URL, and
+   * the design is explicit that it should not: a CNIC in a query string lands
+   * in browser history, in referrer headers, and in every access log on the
+   * path. (The gateway's own logger no longer leaks it — see SEC-15 — but
+   * redaction protects only the logs this process writes.)
+   *
+   * Both now accept `subjectId` and prefer it. The `cnic` form is retained
+   * because the zero-build console in apps/console still uses it and the
+   * OpenAPI contract documents it, but it is deprecated: the operations
+   * console uses the subject-keyed `/customers/{subjectId}/…` routes, and new
+   * callers should pass `subjectId` here too.
+   */
+  const identifierFrom = (
+    query: URLSearchParams,
+  ): { kind: 'subject'; value: string } | { kind: 'cnic'; value: string } => {
+    const subjectId = query.get('subjectId');
+    if (subjectId !== null && subjectId.length > 0) return { kind: 'subject', value: subjectId };
+
     const cnic = query.get('cnic');
-    if (cnic === null) throw new KycError('ERR_INVALID_SCOPE', 'cnic query parameter is required');
-    return { status: 200, body: await svc.versionChain(tx, cnic) };
+    if (cnic !== null && cnic.length > 0) return { kind: 'cnic', value: cnic };
+
+    throw new KycError('ERR_INVALID_SCOPE', 'subjectId (preferred) or cnic is required');
+  };
+
+  routes.set('GET /kyc/history', async ({ query, tx }) => {
+    const id = identifierFrom(query);
+    return {
+      status: 200,
+      body:
+        id.kind === 'subject'
+          ? await svc.versionChainFor(tx, id.value)
+          : await svc.versionChain(tx, id.value),
+    };
   });
 
   routes.set('GET /audit/events', async ({ query, tx }) => {
-    const cnic = query.get('cnic');
-    if (cnic === null) throw new KycError('ERR_INVALID_SCOPE', 'cnic query parameter is required');
-    return { status: 200, body: { events: await svc.auditTrail(tx, cnic) } };
+    const id = identifierFrom(query);
+    const events =
+      id.kind === 'subject'
+        ? await svc.auditTrailFor(tx, id.value)
+        : await svc.auditTrail(tx, id.value);
+    return { status: 200, body: { events } };
   });
 
   routes.set('GET /policies', async () => ({ status: 200, body: PRODUCT_POLICIES }));
@@ -505,11 +567,30 @@ export function createGateway(deps: HttpDeps): Server {
             if (COMPLIANCE_PATHS.has(path)) limiter.check('compliance', caller.mspId);
             if (path === '/employer/bulk-lookup') limiter.check('employerBulk', caller.mspId);
 
-            // Per-subject: the enumeration and cost-attack control. Keyed on
-            // the raw CNIC so it applies before any HSM work is done.
-            const subject = (body['cnic'] as string | undefined) ?? url.searchParams.get('cnic');
-            if (subject !== null && subject !== undefined) {
-              limiter.check('subject', `${caller.mspId}:${subject}`);
+            /*
+             * Per-subject: the enumeration and cost-attack control.
+             *
+             * Every identifier a request can name a customer by has to be
+             * counted, or the limit is only a speed bump around the one that
+             * is. This used to read `cnic` alone — but /kyc/verify, /kyc/update,
+             * /kyc/suspend and /kyc/reinstate all accept `subjectId` and PREFER
+             * it, the operations console sends nothing else, and the customer
+             * read routes are `/customers/{subjectId}/...`. Enumeration by
+             * subject id was therefore unlimited, which is the traffic the
+             * control was written for.
+             *
+             * The CNIC form is still keyed on the raw value so it applies
+             * before any HSM work is done.
+             */
+            const subjectKeys = [
+              (body['cnic'] as string | undefined) ?? url.searchParams.get('cnic'),
+              (body['subjectId'] as string | undefined) ?? url.searchParams.get('subjectId'),
+              params['subjectId'],
+            ];
+            for (const subject of subjectKeys) {
+              if (typeof subject === 'string' && subject.length > 0) {
+                limiter.check('subject', `${caller.mspId}:${subject}`);
+              }
             }
           }
 
@@ -542,6 +623,7 @@ export function createGateway(deps: HttpDeps): Server {
             tx,
             correlationId,
             params,
+            caller,
           });
           status = result.status;
           payload = result.body;

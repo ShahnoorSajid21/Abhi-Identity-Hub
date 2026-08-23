@@ -373,7 +373,23 @@ paths:
         `chainValid: false` in production is a **P1 security incident**, not a
         data-quality ticket: it means state was altered outside chaincode.
       parameters:
-        - { name: cnic, in: query, required: true, schema: { type: string } }
+        - name: subjectId
+          in: query
+          required: false
+          schema: { type: string }
+          description: |
+            PREFERRED. The subject identifier, which cannot be reversed to a
+            citizen without the HSM pepper.
+        - name: cnic
+          in: query
+          required: false
+          schema: { type: string }
+          description: |
+            DEPRECATED. Retained for the zero-build console in apps/console.
+            A CNIC in a query string lands in browser history, referrer headers
+            and every access log on the path — which is why every other read in
+            this API is keyed by subjectId. Pass subjectId instead.
+      # Exactly one of subjectId or cnic is required; subjectId wins if both.
       responses:
         '200':
           description: Full chain
@@ -395,7 +411,23 @@ paths:
       summary: Audit trail for a subject
       description: Records attribute NAMES disclosed, never values.
       parameters:
-        - { name: cnic, in: query, required: true, schema: { type: string } }
+        - name: subjectId
+          in: query
+          required: false
+          schema: { type: string }
+          description: |
+            PREFERRED. The subject identifier, which cannot be reversed to a
+            citizen without the HSM pepper.
+        - name: cnic
+          in: query
+          required: false
+          schema: { type: string }
+          description: |
+            DEPRECATED. Retained for the zero-build console in apps/console.
+            A CNIC in a query string lands in browser history, referrer headers
+            and every access log on the path — which is why every other read in
+            this API is keyed by subjectId. Pass subjectId instead.
+      # Exactly one of subjectId or cnic is required; subjectId wins if both.
       responses:
         '200': { description: Audit events }
         '404': { $ref: '#/components/responses/NotFound' }

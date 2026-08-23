@@ -15,7 +15,9 @@ import { MockRails, MockECib } from './rails.ts';
 import { KycGatewayService } from './service.ts';
 import { createGateway, recordPresentation } from './http.ts';
 import { logInfo } from './logging.ts';
-import { seedCohort, seedActivity } from './seed-cohort.ts';
+import { seedCohort, seedActivity, sampleEmployerList, MAX_SAMPLE_LIST } from './seed-cohort.ts';
+import { EmploymentRegister, DEMO_EMPLOYER_ID } from './security.ts';
+import { normaliseCnic } from '@abhi/merkle';
 import { MockCbs } from './cbs.ts';
 import { PresentationStore } from './presentation.ts';
 
@@ -48,7 +50,27 @@ const vault = new Vault(new MemoryVaultStore(), hsm);
 const rails = new MockRails();
 const ecib = new MockECib();
 
-const service = new KycGatewayService({ ledger, vault, hsm, rails, ecib });
+/**
+ * The SEC-05 roster gate, wired and populated.
+ *
+ * The bulk lookup answers "is this CNIC already verified at ABHI?", which is
+ * only ABHI's to answer for people the asking employer actually employs.
+ * Without this register the endpoint enumerates the customer base one upload
+ * at a time — and until now the bootstrap did not construct one, so the
+ * shipped gateway ran with the gate absent.
+ *
+ * Seeded with the sample file the console offers, under the same employer id
+ * the dev header identity presents, so the demo exercises the control instead
+ * of routing around it. Upload a CNIC outside the roster and it comes back
+ * `NOT_EMPLOYED` — never looked up, so the answer carries no information about
+ * whether that person banks with ABHI.
+ */
+const employment = new EmploymentRegister();
+for (const cnic of sampleEmployerList(new Date(), MAX_SAMPLE_LIST)) {
+  employment.assert(DEMO_EMPLOYER_ID, normaliseCnic(cnic));
+}
+
+const service = new KycGatewayService({ ledger, vault, hsm, rails, ecib, employment });
 
 // One core banking instance, shared: the seeder tells it each customer's
 // masked CNIC, and the read endpoints hand that same mask to the screens.
@@ -90,7 +112,7 @@ async function seed(): Promise<void> {
     await recordPresentation(
       { service, presentation },
       input.path,
-      { mspId: input.mspId, role: input.role, subjectDn: 'CN=seed', source: 'header' },
+      { mspId: input.mspId, role: input.role, subjectDn: 'CN=seed', source: 'header', employerId: null },
       input.tx,
       input.body,
       input.result,

@@ -32,7 +32,8 @@
     "network:down": "bash network/scripts/down.sh",
     "network:deploy-cc": "bash network/scripts/deploy-chaincode.sh",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run typecheck && npm run check:cnic && npm run vectors:verify && npm test && npm run audit:conformance",
+    "typecheck:web": "npm run typecheck --workspace @abhi/web",
+    "verify": "npm run typecheck && npm run typecheck:web && npm run check:cnic && npm run vectors:verify && npm test && npm run test:web && npm run audit:conformance",
     "check:cnic": "node scripts/check-cnic-literals.mjs",
     "test:web": "npm run test --workspace @abhi/web"
   },

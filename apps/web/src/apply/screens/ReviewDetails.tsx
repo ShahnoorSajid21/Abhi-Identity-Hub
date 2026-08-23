@@ -82,11 +82,22 @@ export function ReviewDetails({ result, productId }: { result: VerifyResult; pro
 
       {/* The credit check is not an identity check and was not skipped. Saying
           so here, next to "we asked you for nothing", is the only place a
-          customer or an auditor would think to look. */}
+          customer or an auditor would think to look.
+
+          The OUTCOME is stated too, not just the fact that it ran. The gateway
+          used to return only "it happened", so an adverse credit record and a
+          clean one produced the same screen — which quietly invited the reader
+          to take a green identity result as an approval. It is not one. */}
       {result.eCibCalled && (
         <p className="mt-6 border-t border-ink-200 pt-3 text-caption leading-5 text-ink-700">
           Your credit record was still checked with e-CIB for this application. Reusing your
           identity does not reuse your credit assessment.
+          {result.eCib?.clean === false && (
+            <span className="mt-1 block font-medium text-stop-fg">
+              That check returned an adverse record. Identity is confirmed; this application
+              still needs a credit decision before it can proceed.
+            </span>
+          )}
         </p>
       )}
     </section>

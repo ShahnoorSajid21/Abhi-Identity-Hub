@@ -53,6 +53,11 @@ jobs:
       # node --experimental-strip-types RUNS TypeScript without CHECKING it.
       # Without this gate a type error reaches main with every test green.
       - run: npm run typecheck
+      # The console is a separate tsconfig and was outside the gate above, so
+      # the sentence in that comment was literally true of apps/web: a type
+      # error there reached main with every test green, because neither this
+      # job nor any other compiled it.
+      - run: npm run typecheck:web
 
   # ---------------------------------------------------------------- gate 2
   unit:
@@ -79,6 +84,24 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - name: PII tripwire, vault AAD, production guards, authority separation
         run: npm run test:security
+
+  # ---------------------------------------------------------------- gate 3b
+  console:
+    name: Console tests
+    needs: [crypto-vectors, typecheck]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      # 55 tests over the step-up router, the capture screens and the decision
+      # rendering. They existed and ran only on a developer's machine — no CI
+      # job invoked vitest, so a red console suite could not fail a build.
+      - name: Step-up router, capture screens, decision rendering
+        run: npm run test:web
+      - name: Production build must succeed
+        run: npm run build --workspace @abhi/web
 
   # ---------------------------------------------------------------- gate 4
   integration-e2e:

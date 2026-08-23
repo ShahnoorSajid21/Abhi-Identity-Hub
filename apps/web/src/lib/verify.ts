@@ -40,6 +40,23 @@ export interface ProofBundle {
   attributes: AttributeProof[];
 }
 
+/**
+ * The e-CIB answer.
+ *
+ * The gateway used to report only that the check HAPPENED. It now reports what
+ * it found, because "the credit check ran" and "the credit check passed" are
+ * different statements and only one of them is a reason to lend.
+ *
+ * `clean: false` is NOT a KYC outcome and never changes the decision above —
+ * credit standing is not identity. It is the originating product's gate, and
+ * the console shows it so an operator is not left inferring it from silence.
+ */
+export interface ECibOutcome {
+  called: boolean;
+  clean: boolean;
+  ref: string;
+}
+
 export interface VerifyResult {
   subjectId: string;
   decision: VerifyDecision;
@@ -48,6 +65,8 @@ export interface VerifyResult {
   costAvoidedPkr: number;
   /** Always true except on DENY. The credit check is never displaced by reuse. */
   eCibCalled: boolean;
+  /** Null only on DENY, which short-circuits before the credit check is billed. */
+  eCib: ECibOutcome | null;
 }
 
 /**

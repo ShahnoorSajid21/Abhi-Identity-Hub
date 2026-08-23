@@ -442,17 +442,33 @@ Try the same call with `X-ABHI-MSP: ABHILendingMSP` — you get **403 `ERR_INSUF
 
 ## Version chain and audit trail
 
+Both reads take a `subjectId`, which is what the operations console uses and
+what you should prefer:
+
 ```bash
-curl 'http://localhost:8080/kyc/history?cnic=61101-1234567-8' -H 'X-ABHI-MSP: ABHIBankMSP'
+curl 'http://localhost:8080/kyc/history?subjectId=<64-hex>' -H 'X-ABHI-MSP: ABHIBankMSP'
 ```
 
 Returns every version with `chainValid` and, if broken, `brokenAt`. **In production `chainValid: false` is a P1 security incident, not a data-quality ticket** — it means state was altered outside the chaincode path.
 
 ```bash
-curl 'http://localhost:8080/audit/events?cnic=61101-1234567-8' -H 'X-ABHI-MSP: ABHIBankMSP'
+curl 'http://localhost:8080/audit/events?subjectId=<64-hex>' -H 'X-ABHI-MSP: ABHIBankMSP'
 ```
 
 Records attribute **names** disclosed, never values.
+
+Get a subject id from a CNIC without putting one in a URL — the derivation
+happens inside the HSM boundary:
+
+```bash
+curl -X POST http://localhost:8080/subject-id -H 'content-type: application/json' -d '{"cnic":"61101-1234567-8"}'
+```
+
+Both endpoints still accept `?cnic=` for the zero-build console in
+`apps/console`, but that form is **deprecated**: a CNIC in a query string lands
+in browser history, in referrer headers and in every access log on the path.
+The gateway's own logger masks it (SEC-15), but redaction only protects the
+logs this process writes.
 
 ## Employer bulk lookup
 

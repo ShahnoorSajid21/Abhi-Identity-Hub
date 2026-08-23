@@ -4,7 +4,7 @@ import type { KycGatewayService } from './service.ts';
 import type { MockCbs } from './cbs.ts';
 import type { PresentationStore } from './presentation.ts';
 import { DEFAULT_RAIL_COSTS } from './rails.ts';
-import { planCohort } from './seed-cohort.ts';
+import { sampleEmployerList } from './seed-cohort.ts';
 import type { DynamicRoute, Handler, RequestCtx } from './http.ts';
 
 /**
@@ -286,21 +286,8 @@ export function buildDirectoryRoutes(deps: DirectoryDeps): {
    * which is the point the triage bar makes.
    */
   exact.set('GET /employer/sample-list', async ({ query, tx }) => {
-    const size = Math.min(2000, Math.max(1, Number(query.get('size') ?? 1000)));
-    const plan = planCohort(tx.timestamp);
-
-    // Two thirds already on the books, one third genuinely new — an employer
-    // whose entire workforce was already an ABHI customer would not be a
-    // realistic upload, and the triage bar would have nothing to show.
-    const known = plan.slice(0, Math.floor(size * 0.7)).map((s) => s.cnic);
-    const unknown: string[] = [];
-    for (let i = 0; unknown.length < size - known.length; i += 1) {
-      const area = 34000 + (i % 900);
-      const serial = String(2_000_000 + i * 7919).slice(0, 7);
-      unknown.push(`${area}-${serial}-${i % 10}`);
-    }
-
-    return { status: 200, body: { cnics: [...known, ...unknown] } };
+    const size = Number(query.get('size') ?? 1000);
+    return { status: 200, body: { cnics: sampleEmployerList(tx.timestamp, size) } };
   });
 
   /** Core banking profile lookups. Cost-free — see cbs.ts. */

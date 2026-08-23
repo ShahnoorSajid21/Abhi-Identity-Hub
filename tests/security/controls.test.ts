@@ -226,3 +226,78 @@ describe('endorsement / authority separation', () => {
     }
   });
 });
+
+// ===========================================================================
+describe('SEC-18 · the e-CIB answer reaches the caller', () => {
+  /*
+   * e-CIB is the one origination control the blueprint marks "never bypassed"
+   * (§9, integration table). It ran on every non-DENY verify — and the gateway
+   * awaited it and discarded the return value, so a subject with an adverse
+   * credit record produced a response byte-identical to a clean one.
+   *
+   * The mock always answered clean, which is why no test caught it. Dropping a
+   * real e-CIB provider in behind this would have preserved the behaviour
+   * exactly: the call would be made, billed, and ignored.
+   */
+  const registerA2 = async (h: ReturnType<typeof harness>, cnic: string) =>
+    h.svc.register(h.bank(), {
+      cnic,
+      attributes: a2Attributes(),
+      originProduct: 'WALLET',
+      cnicExpiryAt: CNIC_EXPIRY_OK,
+    });
+
+  test('a clean check is reported as clean', async () => {
+    const h = harness();
+    await registerA2(h, CNIC_WALLET);
+
+    const r = await h.svc.verify(h.lending(), CNIC_WALLET, 'EWA', null);
+
+    assert.equal(r.decision.outcome, 'ALLOW');
+    assert.equal(r.eCibCalled, true);
+    assert.equal(r.eCib?.called, true);
+    assert.equal(r.eCib?.clean, true);
+    assert.ok((r.eCib?.ref ?? '').startsWith('ECIB:'), 'a provider reference must be carried');
+  });
+
+  test('an adverse credit record is visible to the caller', async () => {
+    const h = harness();
+    const reg = await registerA2(h, CNIC_WALLET);
+    h.ecib.markAdverse(reg.subjectId);
+
+    const r = await h.svc.verify(h.lending(), CNIC_WALLET, 'EWA', null);
+
+    // The IDENTITY decision is unchanged — that is deliberate. Credit standing
+    // is not an identity judgement and must not become one.
+    assert.equal(r.decision.outcome, 'ALLOW');
+    // But the credit answer is no longer invisible.
+    assert.equal(r.eCib?.clean, false, 'an adverse record must not be reported as clean');
+  });
+
+  test('a DENY short-circuits before e-CIB is billed', async () => {
+    const h = harness();
+    await registerA2(h, CNIC_WALLET);
+    await h.svc.suspend(h.compliance(), CNIC_WALLET, 'Sanctions review', 'REF-1');
+
+    const before = h.ecib.calls;
+    const r = await h.svc.verify(h.lending(), CNIC_WALLET, 'EWA', null);
+
+    assert.equal(r.decision.outcome, 'DENY');
+    assert.equal(r.eCib, null);
+    assert.equal(r.eCibCalled, false);
+    assert.equal(h.ecib.calls, before, 'a denied subject must not incur a paid credit check');
+  });
+
+  test('e-CIB still runs when identity is reused — reuse never displaces it', async () => {
+    const h = harness();
+    await registerA2(h, CNIC_WALLET);
+
+    const before = h.ecib.calls;
+    const r = await h.svc.verify(h.lending(), CNIC_WALLET, 'EWA', null);
+
+    // Zero rail calls: the identity was reused.
+    assert.ok(r.railCallsAvoided > 0);
+    // One e-CIB call regardless: it is a credit check, not an identity check.
+    assert.equal(h.ecib.calls, before + 1);
+  });
+});

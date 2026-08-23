@@ -24,7 +24,30 @@ export interface CallerIdentity {
   /** Distinguished name, for the audit trail. */
   subjectDn: string;
   source: 'mtls' | 'header';
+  /**
+   * The employer this caller acts for, when it acts for one.
+   *
+   * Only the employer bulk lookup uses it, and it is the whole of the SEC-05
+   * control: the lookup reveals whether a CNIC is already known to ABHI, which
+   * is acceptable only for people the caller demonstrably employs.
+   *
+   * It comes from the AUTHENTICATED PRINCIPAL, never from the request body. An
+   * employer id in a payload is a field the caller chooses, which would make
+   * the roster check a formality — any employer could name another and read
+   * their roster.
+   */
+  employerId: string | null;
 }
+
+/**
+ * Employer identity is carried in a dedicated OU of the client certificate,
+ * `OU=employer:<id>`, alongside the role OU.
+ *
+ * Using a marked OU rather than reusing CN or the role OU keeps the two
+ * separable: a certificate can say both "this is the employer portal" and
+ * "acting for EMP-1042" without either being inferred from the other.
+ */
+const EMPLOYER_OU = /OU=employer:([^\n,/]+)/;
 
 /**
  * Derive identity from the validated client certificate.
@@ -46,9 +69,11 @@ export function identityFromCertificate(cert: X509Certificate): CallerIdentity {
 
   return {
     mspId: org,
-    role: ou ?? null,
+    // The role OU is whichever OU is not the employer marker.
+    role: ou === undefined || ou.startsWith('employer:') ? null : ou,
     subjectDn: subject.replace(/\n/g, ','),
     source: 'mtls',
+    employerId: EMPLOYER_OU.exec(subject)?.[1]?.trim() ?? null,
   };
 }
 
@@ -67,8 +92,24 @@ export function identityFromHeaders(req: IncomingMessage): CallerIdentity {
     role: (req.headers['x-abhi-role'] as string | undefined) ?? 'gateway',
     subjectDn: 'CN=dev,OU=gateway',
     source: 'header',
+    /*
+     * Defaults to the demo employer so the console's bulk upload exercises the
+     * roster check rather than bypassing it. This whole function already
+     * throws in production, so the default cannot reach a real deployment.
+     */
+    employerId:
+      (req.headers['x-abhi-employer'] as string | undefined) ?? DEMO_EMPLOYER_ID,
   };
 }
+
+/**
+ * The employer the POC's seeded roster belongs to.
+ *
+ * Exported so the bootstrap seeds the register under the same id the dev
+ * header identity presents — otherwise the control is live but always denies,
+ * which looks identical to the control being broken.
+ */
+export const DEMO_EMPLOYER_ID = 'EMP-DEMO';
 
 // ---------------------------------------------------------------------------
 // Rate limiting
