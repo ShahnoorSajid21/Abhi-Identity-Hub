@@ -11,6 +11,28 @@
 | **Status** | For review — Technology Leadership, Compliance, Risk, Executive Committee |
 | **Classification** | Internal · Confidential |
 | **Supersedes** | Nothing. Extends `ABHI_KYC_Ledger_IDEA.md` (17 Aug 2026) |
+| **Amended** | 23 August 2026, after the end-to-end review. See the note below |
+
+> **Amendment note — 23 August 2026**
+>
+> The body of this document is the blueprint **as written on 17 August**, deliberately
+> left intact so the record shows what was believed at design time. The review of
+> 23 August added inline annotations in five places, each marked in bold, and one new
+> row to the open-items register:
+>
+> - **[OPEN-F]** (§A.1, and annotated at §1.8, §2.3.2, §2.3.3, §10.4 and §15.5) — whether the
+>   fingerprint and live-selfie step at Product Manual Part Two §9.3 is customer due
+>   diligence or per-request transaction authorisation. **It is unresolved, and it moves
+>   the business case in either direction.** The EWA "zero rail calls" target state
+>   throughout this document is conditional on it, **including POC success criterion 6**.
+> - **§3.5 integration layer, e-CIB row** — the row's "never bypassed" requirement was
+>   implemented as "always called, answer discarded". Corrected; see `SEC-18` in
+>   `docs/SECURITY_AUDIT.md`.
+> - **§8.9 S-5** — the employer roster control described there existed but was not
+>   connected to the HTTP surface. Corrected; see `SEC-16`.
+>
+> Findings are recorded in full in `docs/SECURITY_AUDIT.md` revision 4 and
+> `docs/GAP_ANALYSIS.md` NEW-08 to NEW-13. Nothing in the original text was deleted.
 
 > **Companion documents**
 > - `ABHI_KYC_Ledger_IDEA.md` — **the concept.** Why this exists, in full, self-contained. Read that first if you have seen nothing else.
@@ -220,7 +242,7 @@ Beyond rail spend, four cost pools are affected. None are quantified here **[A]*
 
 | Journey | Today **[M]** | With the ledger |
 |---|---|---|
-| Wallet customer requests EWA | Full KYC/CDD applies; CNIC screening per request | Instant. Zero rail calls. e-CIB still runs |
+| Wallet customer requests EWA | Full KYC/CDD applies; CNIC screening per request | Instant. Zero rail calls. e-CIB still runs — **but see [OPEN-F]**, which may reduce this to one live selfie |
 | A2 customer requests SBL | Full onboarding pack repeated | One liveness selfie — the single missing method |
 | Fingerprint fails 3× | Locked out 24 hours; loan delayed | Never re-scanned; existing A2 proof consumed |
 | Employer bulk-uploads 1,000 staff | 1,000 unverified CNICs, no visibility | Immediate split: activate now vs onboard |
@@ -329,6 +351,7 @@ The dotted lines are the problem. Five records of one person, no linkage, no sha
 | **Risks** | 3-attempt daily cap converts a transient biometric failure into a next-day disbursement delay on a wage-advance product, where timing is the entire value proposition |
 | **Cost drivers** | Per-request biometric and liveness; per-request e-CIB (unavoidable, and correctly so) |
 | **Duplicate opportunity** | **Highest in the bank.** Requires A2; the wallet journey already produces A2. Target state: zero rail calls, e-CIB unchanged |
+| **[OPEN-F] — unresolved** | This row and the Cost drivers row above are in tension, and the review of 23 Aug 2026 could not settle it from the manual. "Current KYC process" records a live-selfie on every EWA request, per Part Two §9.3. If that selfie is **CDD**, EWA requires A3, the wallet's A2 does not satisfy it, and the target state is one selfie rather than zero rail calls. If it is **transaction authorisation** — which §9.3's wording suggests, *"before the request proceeds to approval"*, capped at 3 attempts per day — then it authenticates a specific request, is not reusable by anything, and the modelled saving is overstated by that share. Compliance and Product must decide. See `packages/policy/src/policies.ts`, where EWA is configured A2 |
 
 ### 2.3.3 Advance Salary Access (ASA) **[M]**
 
@@ -340,6 +363,7 @@ The dotted lines are the problem. Five records of one person, no linkage, no sha
 | **Risks** | Same cap-induced lockout |
 | **Cost drivers** | Per-request biometric + liveness |
 | **Duplicate opportunity** | High. A2 within 365 days satisfies it. Also duplicates **EWA's own** verification for customers using both |
+| **[OPEN-F] — unresolved** | Applies here exactly as it does to EWA (§2.3.2): "Current KYC process" above records a live-selfie per request, which is A3 if it is CDD and not reusable at all if it is transaction authorisation. ASA is configured A2 |
 
 ### 2.3.4 Salary-Backed Lending (SBL) **[M]** — Part Two §9.3
 
@@ -894,7 +918,7 @@ flowchart LR
 | **NADRA Verisys** | Out | Sync request/response | Journey key | Fail closed → FULL_KYC incomplete | Mock, cost-metered | Contract, SLA, per-call billing reconciliation |
 | **NADRA Biometric 1:1** | Out | Sync, both hands | Journey key + attempt counter | Fail closed; **consumes a daily attempt** | Mock, cap enforced | Attempt accounting must match NADRA's, or customers get locked out by ABHI's own counter |
 | **Face liveness** | Out | Sync | Journey key + attempt counter | Fail closed | Mock | Provider selection open **[A]** |
-| **e-CIB** | Out | Sync + batch cron **[M]** | Request ID | **Never bypassed** | Mock | Unchanged by this programme, deliberately |
+| **e-CIB** | Out | Sync + batch cron **[M]** | Request ID | **Never bypassed** — and, since SEC-18, never ignored either | Mock | Unchanged by this programme, deliberately. The gateway originally awaited the call and discarded its result, so "never bypassed" was implemented as "always called"; the outcome is now carried to the caller as `VerifyResult.eCib`. It is deliberately not an input to `decide()` — credit standing is not identity |
 | **Core banking** | Both | Sync read; event on status change | — | Degrade to ledger-only decision | Mock | Account-status ↔ KYC-status reconciliation is a real design problem — see below |
 | **Mobiliser GL** | Out | Async posting | Posting ref | Queue and retry | Mock | Cost attribution only |
 | **Employer portal** | In | Bulk async | Upload ID | Partial results returned | **Built — the headline demo** | CSV normalisation must match exactly |
@@ -2139,6 +2163,15 @@ The gateway sees plaintext attributes in transit. It is the most attractive targ
 
 **Residual.** Enumeration — an employer could learn which CNICs are already A2 from the activation split. **Control:** the bulk response returns counts and eligibility flags for CNICs the employer has a demonstrated employment relationship with, rate-limited, with per-employer volume anomaly alerting. **[A]** — this needs a product decision on exactly what the portal displays, and it is a genuine privacy consideration that a naive implementation would miss.
 
+> **Amended 23 Aug 2026 — the control above was built and not connected (`SEC-16`).**
+> `EmploymentRegister` existed and had unit tests, but `POST /employer/bulk-lookup`
+> passed no employer id and the bootstrap constructed no register — so the roster gate
+> could not engage on the only surface a caller can reach, and the shipped configuration
+> answered the enumeration question for any CNIC submitted. This scenario was, in effect,
+> unmitigated in the running system while being reported as mitigated. The employer id is
+> now taken from the authenticated principal, and the gateway refuses to start without a
+> register in production. Per-employer volume-anomaly alerting remains outstanding.
+
 ---
 
 ### S-6 · Replay of a stale proof
@@ -2517,7 +2550,7 @@ Real NADRA Verisys, NADRA biometric, liveness, e-CIB, CBS, Mobiliser. Contracts,
 | Integration test harness | 5 | QA |
 
 **Deliverables** — gateway service; full register→verify→step-up path working end-to-end.
-**Demo** — EWA reusing a wallet verification with **zero rail calls**, cost counter visibly unchanged.
+**Demo** — EWA reusing a wallet verification with **zero rail calls**, cost counter visibly unchanged. **[OPEN-F] must be settled before this is demonstrated to a steering committee**: if §9.3's live-selfie is CDD, the honest demo is one selfie, not none.
 
 ## 10.5 Sprint 3 — Demo, measurement, gate pack
 
@@ -3330,7 +3363,7 @@ Binary. Assessed at the gate. No partial credit.
 | **3** | **No unilateral write** | A single-org write attempt **fails**, demonstrated live |
 | **4** | Compliance-only operations | Product-org `SuspendKYC` → `ERR_COMPLIANCE_ONLY` |
 | **5** | Version chain integrity | 3-version chain verifies; tampering sets `chainValid: false` with correct `brokenAt` |
-| **6** | Reuse path | EWA after wallet → **ALLOW with zero rail calls** |
+| **6** | Reuse path | EWA after wallet → **ALLOW with zero rail calls**. **Conditional on [OPEN-F]:** this criterion holds only if §9.3's live-selfie is transaction authorisation rather than CDD. Under the CDD reading the correct expectation is STEP_UP naming liveness, and this criterion is testing the wrong thing |
 | **7** | Step-up path | SBL after A2 → **STEP_UP naming liveness only** |
 | **8** | Hard stops | Expired CNIC and SUSPENDED both DENY, in the correct precedence |
 | **9** | Propagation | CNIC renewal visible to all products with no batch job |
@@ -3400,6 +3433,7 @@ ABHI verifies the same person repeatedly, cannot distinguish an employer's asser
 | **OPEN-C** | Is intra-group disclosure (Bank → Lending) permitted under current customer terms? | Legal | May require terms and privacy-notice update | Before pilot |
 | **OPEN-D** | What exactly may the employer portal display about non-employees' status? | Product + Legal | Enumeration/privacy exposure (§8.9 S-5) | Before S7 |
 | **OPEN-E** | Does crypto-shredding satisfy a statutory erasure right in Pakistan? | Legal (external opinion) | PDPB readiness claim unsupported | Before production |
+| **OPEN-F** | Is the fingerprint + live-selfie step at Part Two §9.3 customer due diligence, or per-request transaction authorisation? | **Compliance + Product** | **Moves the business case in either direction.** If CDD, EWA and ASA require A3 and the "zero rail calls" target below is wrong. If transaction authorisation, it is not reusable by anything and part of the modelled saving is spend that occurs regardless | **Before the gate** |
 
 ## A.2 Assumptions
 

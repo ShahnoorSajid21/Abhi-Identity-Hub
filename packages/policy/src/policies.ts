@@ -15,7 +15,7 @@ import type { ProductPolicy } from '@abhi/types';
  * of what rule was in force when.
  *
  * ---------------------------------------------------------------------------
- * [OPEN-E] — UNRESOLVED, AND IT MOVES THE BUSINESS CASE. Raised by review,
+ * [OPEN-F] — UNRESOLVED, AND IT MOVES THE BUSINESS CASE. Raised by review,
  * 23 August 2026. Compliance and the product owner must settle it before
  * these numbers are shown to anyone as a forecast.
  *
@@ -53,7 +53,7 @@ import type { ProductPolicy } from '@abhi/types';
  * numbers the programme is being sold on, and choosing between them is a
  * Compliance and product decision, not a refactor. What the review could do
  * without that decision is stop the ambiguity being invisible: see
- * docs/GAP_ANALYSIS.md [OPEN-E] and the caveat carried on the savings figures.
+ * docs/GAP_ANALYSIS.md [OPEN-F] and the caveat carried on the savings figures.
  * ---------------------------------------------------------------------------
  */
 
@@ -72,7 +72,7 @@ const BASE: Omit<
 };
 
 export const PRODUCT_POLICIES: Readonly<Record<string, ProductPolicy>> = Object.freeze({
-  // [OPEN-E] applies to EWA and ASA: Product Manual Part Two §9.3 puts a
+  // [OPEN-F] applies to EWA and ASA: Product Manual Part Two §9.3 puts a
   // live-selfie check on both, which is A3 if it is a CDD step. See the file
   // header — unresolved, and it moves the savings figure.
   EWA: {
