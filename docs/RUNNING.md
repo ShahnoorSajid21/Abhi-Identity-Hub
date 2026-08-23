@@ -252,7 +252,7 @@ packages/types/        the 6 record types, validators, the PII tripwire
 packages/merkle/       salted Merkle tree, proofs, subject-ID derivation
 packages/policy/       the decision engine + product policies + governance
 
-chaincode/kyc-registry/  11 functions — the ledger's business logic
+chaincode/kyc-registry/  12 functions — the ledger's business logic
 services/gateway/        policy, proofs, consent, vault, rails, HTTP, security
 apps/console/            zero-build browser UI, 7 screens
 
@@ -644,6 +644,7 @@ Being precise here is what stops the idea dying in a compliance review.
 
 | Document | Purpose |
 |---|---|
+| `docs/POC_DEMO_RUNBOOK.md` | **Presentation and live-demo runbook — what to click, what to say, what each layer is doing** |
 | `ABHI_Unified_KYC_Ledger_Blueprint.md` | The 15-section architecture and implementation blueprint |
 | `docs/SECURITY_AUDIT.md` | 14 findings with severity, remediation status and sprint assignment |
 | `docs/COMPLIANCE_AUDIT.md` | Control matrix and instrument-by-instrument regulatory mapping |

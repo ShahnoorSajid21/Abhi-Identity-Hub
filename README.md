@@ -84,7 +84,7 @@ npm run audit:conformance
 ```
 apps/console/          zero-build browser console (7 screens)
 services/gateway/      policy engine · proof assembly · consent · vault · rails · HTTP
-chaincode/kyc-registry 11 functions · pure domain over a StateStore port
+chaincode/kyc-registry 12 functions · pure domain over a StateStore port
 packages/merkle/       salted domain-separated Merkle tree · subject-ID derivation
 packages/policy/       deterministic decision engine · product policies
 packages/types/        6 record types · validators · PII tripwire
@@ -143,7 +143,7 @@ Four details are load-bearing and each has a test:
 | Suite | Tests | Covers |
 |---|---|---|
 | `packages/merkle` | 36 | Domain separation, odd-node promotion, 2,000-iteration property test, CNIC normalisation, pinned reference vectors |
-| `chaincode/kyc-registry` | 53 | All 11 functions, state machine, authority separation, tamper detection, chain-hash ordering |
+| `chaincode/kyc-registry` | 53 | All 12 functions, state machine, authority separation, tamper detection, chain-hash ordering |
 | `packages/policy` | 39 | Exhaustive decision table (64 combinations), step-up matrix, four-eyes policy approval, change classification |
 | `services/gateway` | 32 | Directory reads, pending liability, daily activity, presentation indexing |
 | `tests/security` | 71 | PII structural walk, log redaction, vault AAD swap, rate limiting, idempotency, replay, request signing, employer roster gating over HTTP, e-CIB outcome, production guards |
@@ -214,6 +214,7 @@ npm run network:down
 | Document | Purpose |
 |---|---|
 | `docs/RUNNING.md` | **Step-by-step guide: how to run it, and how it works** |
+| `docs/POC_DEMO_RUNBOOK.md` | **Presentation and live-demo runbook — what to click, what to say, what each layer is doing** |
 | `ABHI_Unified_KYC_Ledger_Blueprint.md` | The architecture and 15-section implementation blueprint |
 | `docs/SECURITY_AUDIT.md` | 12 findings with severity and sprint assignment |
 | `docs/COMPLIANCE_AUDIT.md` | Control matrix and instrument-by-instrument mapping |
