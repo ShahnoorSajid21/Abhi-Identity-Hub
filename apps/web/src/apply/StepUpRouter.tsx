@@ -31,12 +31,21 @@ export function StepUpRouter({
   result,
   productId,
   onFinished,
+  onCheckComplete,
+  onBack,
+  onExit,
   now,
 }: {
   result: VerifyResult;
   productId: string;
   /** Fired when the customer clears the last outstanding check. */
   onFinished?: (completed: VerificationMethod[]) => void;
+  /** Fired for EACH check the customer clears — this is what the dashboard reads. */
+  onCheckComplete?: (method: VerificationMethod) => void;
+  /** Pre-confirm Back on the review screen. */
+  onBack?: () => void;
+  /** Leave for the customer's profile once the application is confirmed. */
+  onExit?: () => void;
   /** Injectable clock for the attempt cap. Tests pass a fixed date. */
   now?: Date;
 }) {
@@ -45,6 +54,10 @@ export function StepUpRouter({
   const [completed, setCompleted] = useState<VerificationMethod[]>([]);
 
   function completeCurrent(method: VerificationMethod) {
+    // Report every check the moment it passes, not just the last one, so the
+    // internal dashboard can show "CNIC done, fingerprint pending" while the
+    // customer is still mid-journey.
+    onCheckComplete?.(method);
     const done = [...completed, method];
     setCompleted(done);
 
@@ -82,7 +95,17 @@ export function StepUpRouter({
         </p>
       )}
 
-      {step.screen === 'review' && <ReviewDetails result={result} productId={productId} />}
+      {step.screen === 'review' && (
+        <ReviewDetails
+          result={result}
+          productId={productId}
+          // Reached by finishing captures, not straight from an ALLOW — the
+          // screen says different things about each.
+          steppedUp={completed.length > 0}
+          {...(onBack ? { onBack } : {})}
+          {...(onExit ? { onExit } : {})}
+        />
+      )}
 
       {step.screen === 'hard-stop' && <HardStop reason={result.decision.reason} />}
 

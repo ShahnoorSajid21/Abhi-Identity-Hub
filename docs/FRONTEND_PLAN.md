@@ -266,8 +266,14 @@ must set both:
 | Sana Iqbal — Branch Onboarding | `ABHIBankMSP` | `bank` |
 
 Header identity throws when `NODE_ENV=production`, which is correct and should be left
-alone. The UI's disabled Freeze button is a convenience; the server-side rejection is the
-control, and §5.6 shows it deliberately.
+alone. Whatever the UI does with the Freeze button is a convenience; the server-side
+rejection is the control, and §5.6 shows it deliberately.
+
+The two screens treat it differently on purpose. The customer profile **omits** it for
+Lending and Bank — a dead control on a working screen teaches an operator nothing except
+that the screen has dead controls. `/compliance` **keeps it visible and disabled**, with
+the tooltip and the *attempt anyway* button beside it, because that screen's job is to
+show the rejection happening.
 
 ### 3.6 `<GlossaryDrawer>`
 

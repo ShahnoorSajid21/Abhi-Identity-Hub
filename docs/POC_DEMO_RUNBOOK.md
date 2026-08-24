@@ -782,8 +782,9 @@ Open any A2 customer. Walk the four tabs.
 
 ## What the Audience Sees
 A header with avatar, name, status chip, designation · employer, masked CNIC ·
-employee code, and three buttons: **Run verification**, **Update identity**,
-**Freeze**. Left column tabs: *Identity · Identity history · Product access ·
+employee code, and two buttons — **Check eligibility** and **Run missing
+checks** — plus **Freeze**, which renders only for Compliance and is simply
+absent for the other two personas. Left column tabs: *Identity · Identity history · Product access ·
 Activity*. Right column: **Customer details** tagged *Core banking*, and
 **Consent**.
 
@@ -1053,7 +1054,9 @@ The four buckets total 1,000.
 
 A product calls `POST /kyc/verify` with a `subjectId` or `cnic`, a `productId`,
 and optionally a `consentId` and `requestedAttributes`. In the console this is
-triggered by **Run verification** on a profile, or by opening `/apply/:productId`.
+triggered by **Check eligibility → Open the application** on a profile, or by
+opening `/apply/:productId` directly. The panel's own status line is a
+client-side *preview* of the same rule and calls nothing.
 
 ## The decision engine — `packages/policy/src/engine.ts`
 
@@ -1099,9 +1102,9 @@ for this environment, not approved policy."*
 > **This is the scene. If you are running short, cut everything else.**
 
 ## What I Do
-From an **A2** customer's profile, click **Run verification** → select
-**Salary-Backed Lending** → **Run the check**. (Or type
-`/apply/SBL?subjectId=<id>` directly.)
+From an **A2** customer's profile, click **Check eligibility**. The dropdown
+already reads *Salary-Backed Lending — One more check needed*; select it and
+click **Open the application**. (Or type `/apply/SBL?subjectId=<id>` directly.)
 
 ## What the Audience Sees
 A green notice, then **exactly one screen**:
@@ -1211,7 +1214,7 @@ more."* and the counter drops to 2. Click twice more:
 > **Critical for honesty:** completing a capture screen **does not write to the
 > ledger**. `StepUpRouter`'s `onFinished` is optional and `ApplyPage` passes
 > nothing, so finishing the selfie lands on the review screen and the record
-> stays at A2 / v1. The ledger write happens through **Update identity** (§14) or
+> stays at A2 / v1. The ledger write happens through **Run missing checks** (§14) or
 > the queue's *"Run … only"*. Never imply the capture screen persisted anything.
 
 ## e-CIB — the answer that matters most
@@ -1256,11 +1259,15 @@ missing, and appending a new hash-linked version.
 # Step 7 — Step the customer up to A3
 
 ## What I Do
-Back on the profile, click **Update identity** → Product **Salary-Backed
-Lending** → Reason *"Step-up for SBL application"* → **Run the missing checks**.
+Back on the profile, click **Run missing checks** → Product **Salary-Backed
+Lending** → Reason *"Step-up for SBL application"*. The panel states what is
+about to happen — *"This runs Live selfie check and reuses everything already
+confirmed"* — and the button reads **Run the check**, singular, because one is
+all that is missing. Press it.
 
 ## What the Audience Sees
-A toast: *"[Name]'s identity record was updated."* The Identity card now reads
+A toast naming what actually ran: *"Live selfie check ran. [Name] is now
+fingerprint + selfie."* The Identity card now reads
 **Fingerprint + selfie**. The **Identity history** tab now has two entries.
 
 ## What I Say
@@ -1359,8 +1366,9 @@ is `STEP_UP` with reason `STALE`, re-affirming the strongest method.
 # Step 8 — The same customer, now reused
 
 ## What I Do
-On the customer you just stepped up to A3, click **Run verification** → **Earned
-Wage Access** → **Run the check**. Then repeat for **Salary-Backed Lending**.
+On the customer you just stepped up to A3, click **Check eligibility**. Every
+product in the dropdown now reads *Ready to proceed*. Open **Earned Wage
+Access**, then repeat for **Salary-Backed Lending**.
 
 ## What the Audience Sees
 Both land straight on the review screen. No capture screen at all.
@@ -1971,7 +1979,7 @@ the *same record*, not a second customer.
 | SBL (after step-up to A3) | `ALLOW`, 4 calls avoided, PKR 100 |
 
 ### Customer E — Update / new version
-Take **Customer B** and run **Update identity → Salary-Backed Lending**.
+Take **Customer B** and run **Run missing checks → Salary-Backed Lending**.
 
 | | |
 |---|---|
@@ -2015,7 +2023,7 @@ typed in — use the personas above:
 | 1–2 | Point at the *Confirmation mix* donut | "Today those two things are stored identically." |
 | 2–3 | Open an A2 customer profile | "Mint is the ledger. Slate is core banking. The ledger does not know their name." |
 | 3–6 | **`/apply/SBL` — the headline** | **"One selfie instead of four checks."** |
-| 6–7 | Profile → **Update identity** → run it | "The old version is superseded, not edited. Still there, hash-linked." |
+| 6–7 | Profile → **Run missing checks** → run it | "The old version is superseded, not edited. Still there, hash-linked." |
 | 7–8 | `/onboarding` → sample list | "228 activate today with zero external calls. ABHI cannot produce this screen." |
 | 8–9 | `/audit` | "This is what an SBP inspector would be handed." |
 | 9–10 | The close (§28) | The ask. |
@@ -2038,7 +2046,10 @@ typed in — use the personas above:
 | 16–18 | Architecture: the two ports, and why policy lives in the gateway not the chaincode |
 | 18–20 | Business case (§3) including **`[OPEN-F]`**, then the close |
 
-**The persona switch is the moment.** Do it live: the Freeze button is disabled
+**The persona switch is the moment.** Do it live on `/compliance`, which is the
+screen that keeps the button visible and disabled for exactly this purpose. (A
+customer profile omits it for Lending instead of greying it out, so switch to
+`/compliance` before you make the point.) The Freeze button is disabled
 for Lending — *"that is a courtesy; the real control is the server"* — then show
 the 403 in §27 if anyone doubts it.
 

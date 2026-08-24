@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Link2, Lock } from 'lucide-react';
-import { api, directory, type AssuranceLevel, type CustomerDetail, type ProductPolicy } from '../lib/api.ts';
+import { api, directory, type AssuranceLevel, type ProductPolicy } from '../lib/api.ts';
 import { useApi } from '../lib/useApi.ts';
-import { daysSince, formatDate, formatDateLong, formatRelative, formatTimestamp } from '../lib/format.ts';
+import { previewDecision, OUTCOME_CHIP, OUTCOME_LABEL } from '../lib/readiness.ts';
+import { formatDate, formatDateLong, formatRelative, formatTimestamp } from '../lib/format.ts';
 import {
   ATTRIBUTES,
   CUSTOMER_FACING_PRODUCTS,
@@ -22,6 +23,7 @@ import { SkeletonCard } from '../components/LoadingSkeleton.tsx';
 import { TechnicalDetail, TechnicalRow, CopyableId } from '../components/TechnicalDetail.tsx';
 import { Avatar } from '../components/Avatar.tsx';
 import { CustomerActions } from '../components/CustomerActions.tsx';
+import { CustomerChecks } from '../components/CustomerChecks.tsx';
 
 /**
  * The customer profile — the heart of the app.
@@ -34,64 +36,6 @@ import { CustomerActions } from '../components/CustomerActions.tsx';
  */
 
 type TabId = 'identity' | 'history' | 'products' | 'activity';
-
-const RANK: Record<AssuranceLevel, number> = { A0: 0, A1: 1, A2: 2, A3: 3 };
-
-/**
- * What a product would decide for this customer right now.
- *
- * A PREVIEW, computed from the same inputs the gateway's engine uses. The
- * server remains authoritative — this never writes anything and never claims
- * to have run a verification. It exists so the tab can answer "what does each
- * product actually see?" without firing four real verifications.
- */
-function previewDecision(
-  record: CustomerDetail['record'],
-  policy: { minAssurance: AssuranceLevel; maxAgeDays: number },
-  now: Date,
-): { outcome: 'ALLOW' | 'STEP_UP' | 'FULL_KYC' | 'DENY'; why: string } {
-  if (!record.found || record.assuranceLevel === null) {
-    return { outcome: 'FULL_KYC', why: 'No confirmed identity yet.' };
-  }
-  if (record.status === 'SUSPENDED') {
-    return { outcome: 'DENY', why: 'Frozen by Compliance.' };
-  }
-  if (record.status === 'SHREDDED') {
-    return { outcome: 'DENY', why: 'Personal details were erased at the customer’s request.' };
-  }
-  if (record.cnicExpiryAt !== null && new Date(record.cnicExpiryAt) < now) {
-    return { outcome: 'DENY', why: 'Their CNIC has expired. They must renew it with NADRA.' };
-  }
-
-  const age = daysSince(record.verifiedAt, now);
-  if (RANK[record.assuranceLevel] < RANK[policy.minAssurance]) {
-    return {
-      outcome: 'STEP_UP',
-      why: `Needs ${LEVELS[policy.minAssurance].label.toLowerCase()}.`,
-    };
-  }
-  if (age !== null && age > policy.maxAgeDays) {
-    return {
-      outcome: 'STEP_UP',
-      why: `Confirmed ${age} days ago; this product accepts up to ${policy.maxAgeDays}.`,
-    };
-  }
-  return { outcome: 'ALLOW', why: 'Already confirmed to the standard this product needs.' };
-}
-
-const OUTCOME_CHIP: Record<string, string> = {
-  ALLOW: 'bg-ok-bg text-ok-fg',
-  STEP_UP: 'bg-warn-bg text-warn-fg',
-  FULL_KYC: 'bg-new-bg text-new-fg',
-  DENY: 'bg-stop-bg text-stop-fg',
-};
-
-const OUTCOME_LABEL: Record<string, string> = {
-  ALLOW: 'Ready to proceed',
-  STEP_UP: 'One more check needed',
-  FULL_KYC: 'Full onboarding',
-  DENY: 'Cannot proceed',
-};
 
 /** Ledger actions, as sentences a non-technical reader follows without help. */
 const HISTORY_TITLE: Record<string, string> = {
@@ -164,6 +108,7 @@ export function CustomerProfilePage() {
           subjectId={record.subjectId}
           displayName={cbsProfile.displayName}
           record={record}
+          policies={policies.data}
           onChanged={() => {
             detail.reload();
             history.reload();
@@ -345,6 +290,14 @@ export function CustomerProfilePage() {
 
         {/* --- Right column --------------------------------------------- */}
         <div className="space-y-5">
+          {/* Monitor-only: the checks the customer still owes, shown as status.
+              The internal user watches these; the customer performs them. */}
+          <CustomerChecks
+            subjectId={record.subjectId}
+            displayName={cbsProfile.displayName}
+            record={record}
+          />
+
           <section className="card p-5">
             <div className="flex items-center justify-between">
               <h2 className="text-section font-semibold text-ink-900">Customer details</h2>

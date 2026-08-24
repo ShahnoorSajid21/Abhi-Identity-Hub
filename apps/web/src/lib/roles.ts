@@ -11,8 +11,14 @@
  * outright when NODE_ENV=production — headers can never establish identity in
  * production, only mTLS can.
  *
- * The disabled Freeze button is a convenience. The control is the server's
- * rejection, and §5.6 shows it happening on purpose.
+ * Whatever a screen does with its Freeze button is a convenience. The control
+ * is the server's rejection, and §5.6 shows it happening on purpose.
+ *
+ * The two screens differ deliberately. A customer profile OMITS the button for
+ * the personas that cannot use it — a dead control there teaches an operator
+ * nothing except that the screen has dead controls. /compliance KEEPS it,
+ * visible and disabled, beside the tooltip and an "attempt anyway" button,
+ * because showing the rejection is that screen's job.
  */
 
 export type PersonaId = 'compliance' | 'lending' | 'bank';

@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, BadgeCheck, Fingerprint, FileCheck2, ScanFace } from 'lucide-react';
 import { api, ApiError, type AssuranceLevel, type VerificationMethod } from '../lib/api.ts';
-import { formatCount, formatPkr } from '../lib/format.ts';
+import { formatCount } from '../lib/format.ts';
 import { useToast } from '../components/Toast.tsx';
 import { CUSTOMER_FACING_PRODUCTS, LEVELS, METHODS, PAGE_TITLES, PRODUCTS } from '../copy/strings.ts';
 
@@ -157,7 +157,7 @@ export function NewCustomerPage() {
             <div>
               <dt className="label-caption">External checks run</dt>
               <dd className="tabular mt-1 text-cell text-ink-900">
-                {formatCount(done.railCallsMade)} · {formatPkr(done.costSpentPkr)}
+                {formatCount(done.railCallsMade)}
               </dd>
             </div>
           </dl>
@@ -262,8 +262,8 @@ export function NewCustomerPage() {
         <fieldset className="mt-6">
           <legend className="text-cell font-semibold text-ink-900">Checks to run now</legend>
           <p className="mt-1 text-caption leading-5 text-ink-500">
-            Each one calls an external provider and is billed. The confirmation level is worked out
-            from the checks that pass — it cannot be set here.
+            Each one calls an external provider. The confirmation level is worked out from the
+            checks that pass — it cannot be set here.
           </p>
 
           <ul className="mt-3 space-y-2">

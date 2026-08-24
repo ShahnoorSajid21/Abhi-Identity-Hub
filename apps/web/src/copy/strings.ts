@@ -497,9 +497,14 @@ export const FILTERS = {
 
 export const ACTIONS = {
   viewProfile: 'View profile',
-  runVerification: 'Run verification',
-  updateIdentity: 'Update identity',
+  // The profile header's own action. It opens the application rather than
+  // running anything: the checks a customer still owes belong to the customer,
+  // and the operator's job from this screen is to send them and then watch
+  // them land. The 'Run missing checks' button that used to sit beside it was
+  // the operator standing in for the customer, and has been removed.
+  checkEligibility: 'Check eligibility',
   freeze: 'Freeze',
+  releaseHold: 'Release hold',
   freezeCustomer: 'Freeze customer',
   reinstate: 'Reinstate customer',
   erase: 'Erase personal data',
@@ -901,6 +906,24 @@ export const NOTES = {
   ledgerHoldsNoData:
     'Names and employment details come from core banking. The ledger holds ' +
     'only proof of verification — never personal data.',
+
+  /**
+   * Under the eligibility panel on a customer profile.
+   *
+   * The panel answers from the record the profile already loaded, so it can
+   * answer instantly for all four products at once. That is a preview of the
+   * gateway's decision, not the decision — say so, because an operator who
+   * mistakes one for the other will quote it to a customer.
+   */
+  eligibilityPreview:
+    'Worked out from the record on this page, so nothing is written and no ' +
+    'checks are run. The product itself asks the ledger again when the ' +
+    'application is opened, and that answer is the one that counts.',
+
+  /* The two step-up panel notes that lived here described a control the
+     customer profile no longer has. The operator does not run a customer's
+     checks on their behalf; the customer app does, and the profile monitors
+     it. Copy for a removed control is copy waiting to be pasted back. */
 
   /** Tooltip on a disabled Freeze button. Required. */
   freezeRestricted:

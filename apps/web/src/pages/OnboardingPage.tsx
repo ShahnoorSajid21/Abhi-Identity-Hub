@@ -10,7 +10,7 @@ import {
 } from '../lib/api.ts';
 import { useApi } from '../lib/useApi.ts';
 import { useToast } from '../components/Toast.tsx';
-import { formatCount, formatPercent, formatPkr } from '../lib/format.ts';
+import { formatCount } from '../lib/format.ts';
 import {
   ACTIONS,
   DECISION_REASONS,
@@ -25,6 +25,7 @@ import {
 import { DataTable, type Column } from '../components/DataTable.tsx';
 import { EmptyState } from '../components/EmptyState.tsx';
 import { ErrorState } from '../components/ErrorState.tsx';
+import { CustomerReviewDrawer } from '../components/CustomerReviewDrawer.tsx';
 
 /**
  * Employer bulk onboarding — the business case, and the honest version of it.
@@ -114,6 +115,8 @@ export function OnboardingPage() {
   const [busy, setBusy] = useState(false);
   const [segment, setSegment] = useState<Segment | null>(null);
   const [activated, setActivated] = useState<{ now: number; queued: number } | null>(null);
+  /** The customer whose profile is open for review, over the list. */
+  const [reviewSubject, setReviewSubject] = useState<string | null>(null);
 
   /**
    * The sample employer file.
@@ -186,17 +189,6 @@ export function OnboardingPage() {
     return [...map.entries()].sort((a, b) => b[1] - a[1]);
   }, [result]);
 
-  /** What would actually be run, by method — the working behind the money. */
-  const methodDemand = useMemo(() => {
-    if (result === null) return [];
-    const map = new Map<string, number>();
-    for (const r of result.rows) {
-      if (r.bucket === 'blocked') continue;
-      for (const m of r.missingMethods) map.set(m, (map.get(m) ?? 0) + 1);
-    }
-    return [...map.entries()].sort((a, b) => b[1] - a[1]);
-  }, [result]);
-
   const visibleRows = useMemo(
     () => (result === null || segment === null ? [] : result.rows.filter((r) => r.bucket === segment)),
     [result, segment],
@@ -255,19 +247,26 @@ export function OnboardingPage() {
       width: '130px',
     },
     {
-      key: 'cost',
-      header: 'Cost',
-      render: (r) => (
-        <span className="tabular">
-          <span className="text-ink-900">{formatPkr(r.costWithLedger)}</span>
-          {r.costWithLedger < r.costFromScratch && (
-            <span className="ml-1 text-ink-500 line-through">{formatPkr(r.costFromScratch)}</span>
-          )}
-        </span>
-      ),
-      value: (r) => r.costWithLedger,
+      key: 'review',
+      header: 'Review',
       align: 'right',
-      width: '140px',
+      width: '130px',
+      // The reviewable entry, per customer. Known subjects open a profile;
+      // genuinely new applicants have no ABHI record to open yet, and the
+      // column says so rather than offering a dead control.
+      render: (r) =>
+        r.subjectId === null ? (
+          <span className="text-caption text-ink-500">New applicant</span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setReviewSubject(r.subjectId)}
+            className="text-caption font-medium text-mint-700 underline-offset-2 hover:text-ink-900 hover:underline"
+          >
+            View profile
+          </button>
+        ),
+      value: (r) => r.subjectId ?? '',
     },
   ];
 
@@ -479,73 +478,6 @@ export function OnboardingPage() {
                 </ul>
               </div>
             )}
-          </section>
-
-          {/* ---------------------------------------------------------- */}
-          {/* Economics                                                   */}
-          {/* ---------------------------------------------------------- */}
-          <section className="card mt-5 p-5">
-            <h2 className="text-section font-semibold text-ink-900">What this upload costs</h2>
-            <dl className="mt-4 space-y-2">
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-cell text-ink-700">Without the identity ledger</dt>
-                <dd className="tabular text-body text-ink-900">
-                  {formatPkr(result.costs.withoutLedgerPkr)}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-cell text-ink-700">With the identity ledger</dt>
-                <dd className="tabular text-body text-ink-900">
-                  {formatPkr(result.costs.withLedgerPkr)}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-4 border-t border-ink-200 pt-3">
-                <dt className="text-body font-medium text-ink-900">Saved on this upload</dt>
-                <dd className="tabular text-metric font-bold leading-none text-ok-fg">
-                  {formatPkr(result.costs.savedPkr)}
-                </dd>
-              </div>
-              <div className="flex justify-end">
-                <span className="text-cell text-ok-fg">
-                  {formatPercent(
-                    result.costs.savedPkr / (result.costs.withoutLedgerPkr || 1),
-                  )}{' '}
-                  less
-                </span>
-              </div>
-            </dl>
-
-            {/* The working. A single saved figure is a claim; the checks that
-                would actually run are the evidence for it. */}
-            {methodDemand.length > 0 && (
-              <div className="mt-4 border-t border-ink-100 pt-4">
-                <p className="label-caption">Checks that actually run</p>
-                <ul className="mt-2 space-y-1.5">
-                  {methodDemand.map(([method, n]) => (
-                    <li
-                      key={method}
-                      className="flex flex-wrap items-baseline justify-between gap-x-3 text-cell"
-                    >
-                      <span className="text-ink-700">
-                        {METHODS[method] ?? method}
-                        <span className="tabular ml-2 text-ink-500">
-                          {formatCount(n)} × {formatPkr(result.costs.unitCostPkr[method] ?? 0)}
-                        </span>
-                      </span>
-                      <span className="tabular text-ink-900">
-                        {formatPkr(n * (result.costs.unitCostPkr[method] ?? 0))}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <p className="mt-3 border-t border-ink-100 pt-3 text-caption leading-5 text-ink-500">
-              {NOTES.costsAreModelled} A from-scratch check for this product is{' '}
-              {formatPkr(result.costs.perHeadPkr)} per employee.
-            </p>
-            <p className="mt-2 text-caption leading-5 text-ink-500">{NOTES.reuseScope}</p>
           </section>
 
           {/* ---------------------------------------------------------- */}
@@ -776,6 +708,13 @@ export function OnboardingPage() {
             )}
           </section>
         </>
+      )}
+
+      {/* Review, over the list. The onboarding page stays mounted underneath,
+          so a reviewer moves between customers without losing the employer
+          context they are reviewing within. */}
+      {reviewSubject !== null && (
+        <CustomerReviewDrawer subjectId={reviewSubject} onClose={() => setReviewSubject(null)} />
       )}
     </>
   );

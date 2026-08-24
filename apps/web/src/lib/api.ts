@@ -266,7 +266,16 @@ export const api = {
     attributes: Record<string, string | boolean | number>;
     cnicExpiryAt: string;
     reason: string;
-  }) => request<unknown>('POST', '/kyc/update', input),
+  }) =>
+    // methodsRun is the reuse claim made concrete: it lists the rails the
+    // gateway decided were actually missing, which is rarely what the caller
+    // supplied attributes for. The console reports it back verbatim.
+    request<{
+      subjectId: string;
+      version: number;
+      assuranceLevel: AssuranceLevel;
+      methodsRun: VerificationMethod[];
+    }>('POST', '/kyc/update', input),
 
   suspend: (input: { subjectId?: string; cnic?: string; reason: string; referenceId: string }) =>
     request<unknown>('POST', '/kyc/suspend', input),

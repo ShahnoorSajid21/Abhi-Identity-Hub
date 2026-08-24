@@ -4,17 +4,8 @@ import { ArrowLeft } from 'lucide-react';
 import { api, directory, ApiError, type DecisionOutcome, type QueueRequest } from '../lib/api.ts';
 import { useApi } from '../lib/useApi.ts';
 import { useToast } from '../components/Toast.tsx';
-import { formatCount, formatPkr, formatRelative, formatTimestamp } from '../lib/format.ts';
-import {
-  COLUMNS,
-  EMPTY,
-  METHODS,
-  NOTES,
-  PAGE_TITLES,
-  PRODUCTS,
-  TABS,
-  TOASTS,
-} from '../copy/strings.ts';
+import { formatRelative, formatTimestamp } from '../lib/format.ts';
+import { COLUMNS, EMPTY, METHODS, PAGE_TITLES, PRODUCTS, TABS, TOASTS } from '../copy/strings.ts';
 import { DataTable, type Column } from '../components/DataTable.tsx';
 import { DecisionBanner } from '../components/DecisionBanner.tsx';
 import { AttributeDisclosure } from '../components/AttributeDisclosure.tsx';
@@ -58,7 +49,6 @@ export function QueuePage() {
     (signal) => directory.queue({ decision: active }, signal),
     [active],
   );
-  const summary = useApi((signal) => directory.summary(signal));
 
   const columns: Column<QueueRequest>[] = useMemo(
     () => [
@@ -97,17 +87,6 @@ export function QueuePage() {
           </span>
         ),
       },
-      {
-        key: 'avoided',
-        header: 'Spend avoided',
-        align: 'right',
-        value: (r) => r.costAvoidedPkr,
-        render: (r) => (
-          <span className={r.costAvoidedPkr > 0 ? 'text-ok-fg' : 'text-ink-500'}>
-            {formatPkr(r.costAvoidedPkr)}
-          </span>
-        ),
-      },
     ],
     [],
   );
@@ -131,31 +110,6 @@ export function QueuePage() {
       <p className="mt-1 text-cell text-white/70">
         What each product asked, and what the identity records answered.
       </p>
-
-      {/*
-        What clearing this queue costs.
-
-        This figure used to sit on the dashboard beside "spend avoided", where
-        the pairing read as a return on investment. It belongs here instead: an
-        operations lead looking at a backlog wants to know what actioning it
-        buys, and that is context rather than a claim. The modelled-costs
-        caveat travels with it, because the caveat is about these unit prices
-        and nothing else on either screen.
-      */}
-      {summary.data !== null && summary.data.pendingRequests > 0 && (
-        <p className="mt-3 flex flex-wrap items-baseline gap-x-2 text-caption text-white/70">
-          <span className="tabular font-medium text-white">
-            {formatCount(summary.data.pendingChecks)} checks
-          </span>
-          <span>
-            outstanding across {formatCount(summary.data.pendingRequests)} requests, costing about{' '}
-            <span className="tabular font-medium text-white">
-              {formatPkr(summary.data.pendingCostPkr)}
-            </span>{' '}
-            once run. {NOTES.costsAreModelled}
-          </span>
-        </p>
-      )}
 
       <div className="mt-5 flex flex-wrap gap-1 border-b border-navy-600">
         {TAB_FOR.map((t) => (
@@ -291,21 +245,17 @@ export function QueueRequestPage() {
 
       {data.decision === 'ALLOW' && (
         <section className="card mt-5 p-5">
-          <h2 className="text-section font-semibold text-ink-900">What this saved</h2>
+          <h2 className="text-section font-semibold text-ink-900">Reused, not re-run</h2>
           <div className="mt-4 grid gap-6 sm:grid-cols-2">
             <div>
               <p className="label-caption">Without the ledger</p>
               <p className="tabular mt-2 text-body text-ink-500">
                 {data.railCallsAvoided} external checks
               </p>
-              <p className="tabular text-body text-ink-500">{formatPkr(data.costAvoidedPkr)}</p>
             </div>
             <div>
               <p className="label-caption">With the ledger</p>
               <p className="tabular mt-2 text-body font-semibold text-ok-fg">0 external checks</p>
-              <p className="tabular text-metric font-bold leading-none text-ok-fg">
-                {formatPkr(0)}
-              </p>
             </div>
           </div>
           {/* The reuse-scope caveat is already on the decision banner directly

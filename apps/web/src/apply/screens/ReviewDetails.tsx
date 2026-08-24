@@ -1,19 +1,58 @@
-import { CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import type { VerifyResult } from '../../lib/verify.ts';
 import { PRODUCTS } from '../../copy/strings.ts';
-import { formatPkr } from '../../lib/format.ts';
+import { confirmApplication, useApplication } from '../../lib/applications.ts';
+import { useToast } from '../../components/Toast.tsx';
 import { AttributeDisclosure } from '../../components/AttributeDisclosure.tsx';
 
 /**
- * The ALLOW destination: the product's own review screen.
+ * The application-details screen, and the point at which the application is
+ * confirmed.
  *
- * Reached with no capture at all — the customer's existing record satisfied
- * the policy. The screen therefore has to answer the question a customer will
- * actually have: "why didn't you ask me for anything?"
+ * Reached two ways: directly when the customer's existing record already
+ * satisfied the policy (nothing to capture), or at the end of a step-up once
+ * every outstanding check has been cleared. Either way it answers the question
+ * the customer will actually have — "why didn't you ask me for anything?" —
+ * and then gives them the two controls the screen was previously missing: a
+ * Confirm that records the confirmation, and a Back that does not.
+ *
+ * Navigation is injected rather than taken with useNavigate, because this
+ * screen is mounted bare (no Router) in the step-up routing tests. Confirming
+ * still writes the shared application store whether or not a navigation
+ * callback was supplied, so the status update never depends on the caller.
  */
-export function ReviewDetails({ result, productId }: { result: VerifyResult; productId: string }) {
+export function ReviewDetails({
+  result,
+  productId,
+  steppedUp = false,
+  onBack,
+  onExit,
+}: {
+  result: VerifyResult;
+  productId: string;
+  /**
+   * True when this screen was reached by finishing a step-up rather than
+   * straight from an ALLOW.
+   *
+   * The two arrivals need different sentences. "There was nothing further to
+   * check" is the whole point on the ALLOW path and simply false on the other,
+   * where the customer has just been through a capture — and the reuse figure
+   * beside it belongs to the ALLOW path too: it reads 0 after a step-up, which
+   * lands as "we reused nothing" directly beneath a banner saying the opposite.
+   */
+  steppedUp?: boolean;
+  /** Pre-confirm Back — a plain history step. Confirms nothing. */
+  onBack?: () => void;
+  /** Leave for the customer's profile once confirmed. */
+  onExit?: () => void;
+}) {
   const product = PRODUCTS[productId] ?? productId;
-  const disclosed = result.proof?.attributes.map((a) => a.name) ?? result.decision.disclosableAttributes;
+  const toast = useToast();
+  const application = useApplication(result.subjectId);
+  const confirmed = application?.productId === productId && application.confirmedAt !== null;
+
+  const disclosed =
+    result.proof?.attributes.map((a) => a.name) ?? result.decision.disclosableAttributes;
 
   return (
     <section className="card p-6" data-testid="review-details">
@@ -24,8 +63,9 @@ export function ReviewDetails({ result, productId }: { result: VerifyResult; pro
             Review your {product} details
           </h2>
           <p className="mt-2 max-w-prose text-body leading-6 text-ink-700">
-            Your identity is already confirmed to the level {product} requires, so there was nothing
-            further to check. Confirm the details below to continue.
+            {steppedUp
+              ? `That was the only check ${product} still needed — everything else was already on your record. Confirm the details below to continue.`
+              : `Your identity is already confirmed to the level ${product} requires, so there was nothing further to check. Confirm the details below to continue.`}
           </p>
         </div>
       </div>
@@ -37,22 +77,28 @@ export function ReviewDetails({ result, productId }: { result: VerifyResult; pro
             {result.decision.currentAssurance}
           </dd>
         </div>
-        <div>
-          <dt className="label-caption">Checks you did not have to repeat</dt>
-          <dd className="tabular mt-1 text-body font-semibold text-ok-fg">
-            {result.railCallsAvoided}
-          </dd>
-        </div>
-        <div>
-          <dt className="label-caption">Confirmed</dt>
-          <dd className="tabular mt-1 text-body text-ink-900">
-            {result.decision.ageDays === null ? '—' : `${result.decision.ageDays} days ago`}
-          </dd>
-        </div>
-        <div>
-          <dt className="label-caption">Cost avoided</dt>
-          <dd className="tabular mt-1 text-body text-ok-fg">{formatPkr(result.costAvoidedPkr)}</dd>
-        </div>
+        {/* Both of these describe the record as it stood when the journey
+            began, so a finished step-up has just made them wrong: the reuse
+            count is the ALLOW path's figure, and the age is of a confirmation
+            that has since been superseded. The level above is refreshed from
+            the ledger's answer; these two are dropped rather than restated
+            from a number this screen would have to invent. */}
+        {!steppedUp && (
+          <>
+            <div>
+              <dt className="label-caption">Checks you did not have to repeat</dt>
+              <dd className="tabular mt-1 text-body font-semibold text-ok-fg">
+                {result.railCallsAvoided}
+              </dd>
+            </div>
+            <div>
+              <dt className="label-caption">Confirmed</dt>
+              <dd className="tabular mt-1 text-body text-ink-900">
+                {result.decision.ageDays === null ? '—' : `${result.decision.ageDays} days ago`}
+              </dd>
+            </div>
+          </>
+        )}
       </dl>
 
       <div className="mt-6">
@@ -100,6 +146,55 @@ export function ReviewDetails({ result, productId }: { result: VerifyResult; pro
           )}
         </p>
       )}
+
+      {/* --- Confirm / Back -------------------------------------------- */}
+      <div className="mt-6 border-t border-ink-200 pt-5">
+        {confirmed ? (
+          <div className="flex flex-wrap items-center gap-3" data-testid="application-confirmed">
+            <span className="inline-flex items-center gap-2 rounded-pill bg-ok-bg px-3 py-1 text-cell font-medium text-ok-fg">
+              <CheckCircle2 size={15} aria-hidden="true" />
+              Application confirmed
+            </span>
+            {onExit !== undefined && (
+              <button
+                type="button"
+                onClick={onExit}
+                className="text-cell font-medium text-ink-700 underline underline-offset-2 hover:text-ink-900"
+              >
+                Back to the customer
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              data-testid="confirm-application"
+              onClick={() => {
+                confirmApplication(result.subjectId, productId);
+                toast(`${product} application confirmed.`, 'ok');
+              }}
+              className="rounded-control bg-mint-500 px-5 py-2.5 text-cell font-semibold text-navy-900 transition-colors duration-fast hover:bg-mint-600"
+            >
+              Confirm application
+            </button>
+            {/* Back returns to the previous screen and confirms nothing, so the
+                customer/application context the operator arrived with is
+                exactly what they return to. */}
+            {onBack !== undefined && (
+              <button
+                type="button"
+                data-testid="back-to-previous"
+                onClick={onBack}
+                className="inline-flex items-center gap-2 rounded-control border border-ink-200 px-4 py-2.5 text-cell font-medium text-ink-700 transition-colors duration-fast hover:border-mint-500 hover:text-ink-900"
+              >
+                <ArrowLeft size={15} aria-hidden="true" />
+                Back
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </section>
   );
 }
