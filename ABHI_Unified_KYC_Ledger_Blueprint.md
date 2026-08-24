@@ -11,7 +11,7 @@
 | **Status** | For review — Technology Leadership, Compliance, Risk, Executive Committee |
 | **Classification** | Internal · Confidential |
 | **Supersedes** | Nothing. Extends `ABHI_KYC_Ledger_IDEA.md` (17 Aug 2026) |
-| **Amended** | 23 August 2026, after the end-to-end review. See the note below |
+| **Amended** | 23 August 2026 after the end-to-end review; 24 August 2026 after the POC scope change. See the notes below |
 
 > **Amendment note — 23 August 2026**
 >
@@ -33,6 +33,30 @@
 >
 > Findings are recorded in full in `docs/SECURITY_AUDIT.md` revision 4 and
 > `docs/GAP_ANALYSIS.md` NEW-08 to NEW-13. Nothing in the original text was deleted.
+
+> **Amendment note — 24 August 2026**
+>
+> **The POC's cost dashboard was withdrawn, and every figure denominated in rupees
+> was removed from the console interface with it.** This document specifies that
+> dashboard in six places — §9.4 (Phase 4 deliverables, the S3 task table, and the POC
+> acceptance criteria), §10.5 (the Sprint 3 backlog and demo spine item 9), and §12.8
+> item 36. Each is annotated in bold where it appears. As with the 23 August review,
+> nothing in the original text was deleted.
+>
+> **The economic model is unaffected.** The unit-cost table, the sensitivity analysis
+> and the ROI case are arguments made on paper, and none of them ran through the
+> screen. The gateway still computes and returns every cost field — `/metrics` and the
+> employer bulk-lookup response are unchanged — so the dashboard is a UI decision that
+> can be reversed without backend work.
+>
+> **What the withdrawal costs the demo, stated plainly.** The employer-upload saving
+> was the POC's headline commercial exhibit, and it is no longer on screen. A reader
+> reaching §10.5 will find item 9 described as "the one the CFO remembers"; that beat
+> no longer exists in the running console, and any gate pack built from this document
+> must source the figure from `npm run numbers` or the gateway directly, with the
+> standing caveat that **the unit costs are modelled placeholders, not ABHI's
+> contracted rates**. That caveat was always attached to them; removing the screen
+> removed the place it was displayed.
 
 > **Companion documents**
 > - `ABHI_KYC_Ledger_IDEA.md` — **the concept.** Why this exists, in full, self-contained. Read that first if you have seen nothing else.
@@ -2368,6 +2392,12 @@ gantt
 
 **Deliverables** — demo UI covering the five operations; employer bulk-upload split; cost dashboard showing saved vs spent; auditor view rendering a version chain with integrity status; seeded demo dataset; recorded demo script.
 
+> **Amended 24 Aug 2026 — the cost dashboard was withdrawn.** It was removed from the
+> console along with every rupee-denominated figure; see the amendment note at the head
+> of this document. The gateway's cost fields are untouched, so this is a UI
+> withdrawal, not a capability that was never built. The other deliverables in this
+> list are unaffected by the change and are not assessed here.
+
 **Tasks**
 | Task | Owner | Est. |
 |---|---|---|
@@ -2375,7 +2405,7 @@ gantt
 | Employer bulk-upload screen + activation split | FE | 3 d |
 | Compliance console: suspend, reinstate, shred | FE | 3 d |
 | Auditor view: version chain, integrity, disclosure log | FE | 3 d |
-| Cost dashboard: calls avoided, cost avoided, `r` observed | FE + BE2 | 3 d |
+| Cost dashboard: calls avoided, cost avoided, `r` observed — **withdrawn 24 Aug 2026, see the amendment note** | FE + BE2 | 3 d |
 | Demo dataset + reset script | BE1 | 2 d |
 | Demo script, dry runs, recorded walkthrough | PM + QA | 4 d |
 | Performance baseline | QA | 2 d |
@@ -2394,7 +2424,7 @@ Real NADRA Verisys, NADRA biometric, liveness, e-CIB, CBS, Mobiliser. Contracts,
 **Acceptance criteria (POC)**
 - [ ] All five operations demonstrable end-to-end
 - [ ] Employer upload of 1,000 CNICs splits correctly and completes < 60 s
-- [ ] Cost dashboard shows calls avoided against a configurable unit cost
+- [ ] ~~Cost dashboard shows calls avoided against a configurable unit cost~~ — **withdrawn 24 Aug 2026.** This criterion can no longer be met from the console and is not a pass condition. Calls avoided remain observable on `/metrics` and in the bulk-lookup response
 - [ ] Auditor view detects a deliberately tampered record
 - [ ] Full demo runs in ≤ 20 minutes without engineer intervention
 
@@ -2565,7 +2595,7 @@ Real NADRA Verisys, NADRA biometric, liveness, e-CIB, CBS, Mobiliser. Contracts,
 | Employer bulk-upload + activation split | 5 | FE |
 | Compliance console: suspend / reinstate / shred | 5 | FE |
 | Auditor view: version chain + integrity + disclosure log | 5 | FE |
-| Cost dashboard: avoided calls, avoided cost, observed `r` | 5 | FE, BE2 |
+| Cost dashboard: avoided calls, avoided cost, observed `r` — **withdrawn 24 Aug 2026** | 5 | FE, BE2 |
 | Seeded dataset + one-command reset | 3 | BE1 |
 | Performance baseline | 3 | QA |
 | Full regression + demo dry runs | 5 | QA |
@@ -2585,6 +2615,18 @@ Real NADRA Verisys, NADRA biometric, liveness, e-CIB, CBS, Mobiliser. Contracts,
 9. **Cost dashboard: the measured `r` and what it implies annually**
 
 Item 9 is the one the CFO remembers. Everything before it is how it became credible.
+
+> **Amended 24 Aug 2026 — item 9 is no longer demonstrable from the console.** The
+> cost dashboard was withdrawn and all rupee figures were removed from the interface.
+> Items 1–8 are unchanged and were each walked against the running application.
+>
+> **This removes the demo's commercial close, and nothing on screen replaces it.** The
+> measured reuse rate `r` is still observable — the dashboard's "Checks reused today"
+> card reports it as a percentage of requests, and `/metrics` carries the underlying
+> counters — but the annual rupee implication is no longer rendered anywhere. A gate
+> pack needing that figure must compute it outside the console and present it as the
+> projection it is, against unit costs Finance has still not signed. See
+> `docs/POC_DEMO_RUNBOOK.md`, which is the walked script and supersedes this spine.
 
 ## 10.6 Sprints 4–15 — Production track
 
@@ -3014,7 +3056,7 @@ cipher.setAAD(aad);
 **33.** Employer bulk upload — CSV in, activation split out.
 **34.** Compliance console — suspend, reinstate, shred, with mandatory reason fields.
 **35.** Auditor view — version chain with per-link integrity status, disclosure log.
-**36.** Cost dashboard — calls made, calls avoided, cost avoided, observed reuse rate.
+**36.** Cost dashboard — calls made, calls avoided, cost avoided, observed reuse rate. **Withdrawn 24 Aug 2026; steps 31–35 stand as written.** Three of these four survive: the observed reuse rate is on the dashboard as a percentage of requests, calls avoided is on the queue request page and the application review screen, and calls made is on the registration receipt. **Only `cost avoided` is gone** — as is every other rupee figure in the console. What was withdrawn is the money, not the measurement.
 
 **Design note for the demo:** show the *reason code* on every decision, not just the outcome. "STEP_UP — ASSURANCE_LOW — missing: LIVENESS" is what makes the system legible to a compliance officer in a 20-minute demo. An unexplained "STEP_UP" is a black box, and black boxes do not get approved.
 

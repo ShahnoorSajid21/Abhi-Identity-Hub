@@ -4,6 +4,7 @@
 **System:** ABHI Unified KYC Ledger
 **Audience:** Executive sponsor · Compliance · Risk · Product · Engineering
 **Prepared:** 23 August 2026
+**Revised:** 24 August 2026 — see the revision note below
 **Supersedes:** `docs/POC_PRESENTATION_PLAN.md`
 
 ---
@@ -15,14 +16,47 @@ Every step in this runbook was performed against the running application on
 different from what you might expect, this document says so rather than
 describing the intention.
 
+> ### Revision note — 24 August 2026
+>
+> **The console changed after this runbook was walked, and two things it told you to
+> do can no longer be done.** Read this before presenting from any section below.
+>
+> 1. **"Run missing checks" no longer exists.** The customer profile no longer carries
+>    a control that runs a customer's checks on their behalf — the checks belong to the
+>    customer and are performed in the customer app. Steps that clicked it are rewritten:
+>    **§14 Step 7**, the honesty note in §13, **Customer E** in the scenario matrix, and
+>    the 6–7 minute row of the executive cut.
+> 2. **Every rupee figure was removed from the console.** The employer upload's "What
+>    this upload costs" section is gone, and with it the *"37% / PKR 29,260"* close.
+>    Any instruction to quote those figures from the screen is withdrawn.
+>
+> **The headline demo is unaffected and got stronger.** Completing the selfie now
+> writes to the ledger from the customer's own journey, so the A2→A3 supersession that
+> §14 exists to show still happens — from the customer app rather than the operator's
+> profile. Re-walked live on 24 August: v1 A2 → v2 A3, `chainValid: true`, one selfie
+> run and three checks reused, `cnicExpiryAt` identical across both versions.
+>
+> 3. **Employer onboarding → Review gained a customer list.** Each row in a bucket
+>    drill-down now carries a **View profile** action opening a slide-over with the
+>    customer's KYC status, confirmed checks and identifiers; **Back to the list**
+>    returns to the same upload, bucket and scroll. Walked live on 24 August: the
+>    "One check needed" bucket listed 25 rows, the drawer opened on
+>    *Shazia Anwar Raza*, and the table stayed mounted underneath throughout. The
+>    **Cost** column that used to end each row is replaced by this action.
+>
+> Everything else in this document stands as walked on 23 August.
+
 ### The three sentences you must be willing to say out loud
 
 1. **"The ledger holds proof, not data."** No CNIC and no attribute value ever
    reaches it, and `tests/security/controls.test.ts` fails the build if one does.
 2. **"This runs on a simulator, not a Fabric network."** It proves the domain
    logic and proves nothing about multi-organisation governance.
-3. **"Every rupee figure on screen is modelled."** Finance has not signed the
-   unit costs.
+3. **"There are no rupee figures on screen."** *(Revised 24 Aug 2026 — this
+   sentence previously read "every rupee figure on screen is modelled".)* The cost
+   reporting was withdrawn from the console because Finance has not signed the unit
+   costs. The savings case is made on paper, from `npm run numbers` and the gateway's
+   own counters, and it must be presented as a projection rather than a measurement.
 
 ### The one number the demo exists to make believable
 
@@ -870,7 +904,8 @@ leave **Live selfie** unticked. Click **Run the checks and record the identity**
 Before submitting, a mint note: *"If every selected check passes, this customer
 reaches Fingerprint verified."* After: **Identity recorded on the ledger** —
 Confirmation level *Fingerprint verified*, Checks that passed, External checks
-run *3 · PKR 80*, and the standing sentence: *"The level above was derived from
+run *3* *(revised 24 Aug 2026 — this panel read "3 · PKR 80" until the rupee figure
+was removed)*, and the standing sentence: *"The level above was derived from
 the checks that actually succeeded. A check that fails simply does not count
 towards it — nothing here was asserted."*
 
@@ -931,10 +966,11 @@ Ledger record written to `MemoryStateStore`; salts and values to
 level not derivable from the methods list — `ERR_ASSURANCE_MISMATCH`.
 
 ## Result
-A new v1 record. Rail spend appears on the dashboard.
+A new v1 record. *(Revised 24 Aug 2026 — this read "Rail spend appears on the
+dashboard." No spend figure appears anywhere in the console now.)*
 
 ## Demo Checkpoint
-The success panel reads **Fingerprint verified** and **3 · PKR 80**.
+The success panel reads **Fingerprint verified** and **3** external checks run.
 
 ## Likely Question
 *"What if the fingerprint check fails?"*
@@ -964,9 +1000,19 @@ over 1,000 employees:
 | **Blocked** | 3 | Frozen by Compliance |
 
 The middle bucket breaks down: *274 — needs a more thorough check*; *195 —
-confirmed too long ago*. Then **What this upload costs**: without the ledger
-**PKR 79,760**, with it **PKR 50,500**, **saved PKR 29,260 — 37% less**, and a
-per-method breakdown of the checks that actually run.
+confirmed too long ago*.
+
+> **Revised 24 August 2026 — the costing section was removed from this screen.** It
+> read: *"**What this upload costs**: without the ledger **PKR 79,760**, with it
+> **PKR 50,500**, **saved PKR 29,260 — 37% less**, and a per-method breakdown of the
+> checks that actually run."* None of that renders any more.
+>
+> **This removes the commercial close from the employer demo, and nothing on screen
+> replaces it.** What remains is the triage itself — 228 / 469 / 300 / 3 — which is
+> the operational claim and is still the strongest thing on the screen: 697 of 1,000
+> employees are already known to ABHI. If you need the rupee figure, it comes from
+> `npm run numbers` or the gateway's bulk-lookup response, and it must be presented as
+> a projection against unit costs Finance has not signed.
 
 Below that, three honesty callouts, all live on screen:
 - *"An employer upload is a claim, not a check."* Unknown employees are recorded
@@ -1033,10 +1079,13 @@ The four buckets total 1,000.
 > **The screen is right; the script is a simplification** — the opposite of what
 > `numbers.ts`'s own header claims.
 >
-> **Quote 37% and PKR 29,260.** If someone has read the script, say: *"That
-> block models level distribution only. The screen applies the full policy,
-> including the 180-day and 365-day freshness windows, so it is the lower and
-> more honest number."*
+> **Do not quote 37% and PKR 29,260 from the screen — revised 24 Aug 2026.** Those
+> figures no longer render anywhere in the console. The reasoning below still holds
+> and is worth giving if the script comes up: *"That block models level distribution
+> only. The screen applies the full policy, including the 180-day and 365-day
+> freshness windows, so its bucket split is the more honest one."* The **bucket
+> counts** are what the screen still proves; the saving is now a paper projection and
+> must be introduced as one.
 
 ## Likely Question
 *"Does an employer upload create verified customers?"*
@@ -1211,11 +1260,26 @@ more."* and the counter drops to 2. Click twice more:
 | `FULL_KYC` | `OnboardingWizard` | No | **Yes** |
 | `DENY` | `HardStop` — no capture screen is ever offered | No | **No** (short-circuits before billing) |
 
-> **Critical for honesty:** completing a capture screen **does not write to the
-> ledger**. `StepUpRouter`'s `onFinished` is optional and `ApplyPage` passes
-> nothing, so finishing the selfie lands on the review screen and the record
-> stays at A2 / v1. The ledger write happens through **Run missing checks** (§14) or
-> the queue's *"Run … only"*. Never imply the capture screen persisted anything.
+> **Critical for honesty — REVERSED on 24 August 2026.** This note previously read:
+> *"completing a capture screen does not write to the ledger… the record stays at
+> A2 / v1"*. **That is no longer true, and the correction runs in the programme's
+> favour, so state it carefully rather than skipping it.**
+>
+> `ApplyPage` now passes `onFinished`, and clearing the last outstanding check commits
+> the step-up — `POST /kyc/update`, appending a new version. Finishing the selfie takes
+> the customer to the review screen **and** moves the record to A3 / v2. Verified live
+> on 24 August: v1 A2 → v2 A3, `chainValid: true`, `methodsRun: ["LIVENESS"]`.
+>
+> Two limits on that claim, both worth stating unprompted:
+>
+> - **It fires for `STEP_UP` only.** A `FULL_KYC` journey has no record to append to,
+>   and creating one needs the CNIC the customer app deliberately does not hold. The
+>   onboarding wizard still persists nothing.
+> - **The capture itself is still simulated.** The button stands in for a scanner. What
+>   is real is the write that follows it and the gateway's decision about which rails
+>   to run — it recomputes the missing methods itself and ignores any client claim.
+>
+> The queue's *"Run … only"* remains a second, operator-side path to the same write.
 
 ## e-CIB — the answer that matters most
 
@@ -1258,17 +1322,29 @@ missing, and appending a new hash-linked version.
 
 # Step 7 — Step the customer up to A3
 
+> **Rewritten 24 August 2026.** This step used to press **Run missing checks** on the
+> operator's profile. That control was removed: staff no longer run a customer's checks
+> for them. The step-up now happens where the customer is, and this step continues
+> directly from Step 6 rather than returning to the profile.
+
 ## What I Do
-Back on the profile, click **Run missing checks** → Product **Salary-Backed
-Lending** → Reason *"Step-up for SBL application"*. The panel states what is
-about to happen — *"This runs Live selfie check and reuses everything already
-confirmed"* — and the button reads **Run the check**, singular, because one is
-all that is missing. Press it.
+Stay in the customer journey from Step 6. The only screen offered is **Live selfie
+verification** — press **Start face verification**. Then open the customer's profile
+to show what landed.
 
 ## What the Audience Sees
-A toast naming what actually ran: *"Live selfie check ran. [Name] is now
-fingerprint + selfie."* The Identity card now reads
-**Fingerprint + selfie**. The **Identity history** tab now has two entries.
+The journey advances to the review screen, and above it a green line: *"Live selfie
+check recorded on your identity record. You are now fingerprint + selfie. Nobody will
+ask you for these checks again."*
+
+On the profile, the Identity card now reads **Fingerprint + selfie**, the **Identity
+history** tab has two entries, and the **Customer checks** panel reads *"All checks
+complete"* with the selfie marked **Completed** — status only, with no button
+inviting staff to run anything.
+
+> **The separation is the point, and it is visible on two screens at once.** The
+> customer performed the check; the operator watched it arrive. The audit row records
+> it as *"Customer completed Live selfie check for SBL"*.
 
 ## What I Say
 > "The old version is not edited. It is superseded, and it is still there,
@@ -1279,8 +1355,13 @@ fingerprint + selfie."* The Identity card now reads
 Append-only history is the difference between a record and an assertion.
 
 ## Frontend Mechanism
-`CustomerActions.tsx` → `api.update({subjectId, productId, attributes,
-cnicExpiryAt, reason})`. Keyed by `subjectId` — the console holds no CNIC.
+`ApplyPage.tsx` → `commitStepUp` on `StepUpRouter`'s `onFinished` →
+`api.update({subjectId, productId, attributes, cnicExpiryAt, reason})`. Keyed by
+`subjectId` — the console holds no CNIC. The `cnicExpiryAt` is read off the customer's
+own record and passed back unchanged, because the gateway writes that field verbatim
+onto the new version; a record without one is refused rather than given an invented
+date. *(Until 24 Aug 2026 this call was made from `CustomerActions.tsx` by an
+operator.)*
 
 ## Backend Mechanism
 `POST /kyc/update` → `svc.stepUpBySubject`. Computes `missingMethodsFor(record,
@@ -1384,6 +1465,11 @@ Both land straight on the review screen. No capture screen at all.
 |---|---|---|---|
 | EWA (A2 / 365 d) | `ALLOW · SUFFICIENT` | 3 | PKR 80 |
 | SBL after step-up (A3 / 180 d) | `ALLOW · SUFFICIENT` | 4 | PKR 100 |
+
+> **These are gateway response fields, not screen readings, and they remain accurate.**
+> `costAvoidedPkr` is still computed and returned by `/kyc/verify`; only its display
+> was withdrawn on 24 Aug 2026. Quote this table from the API, never by pointing at a
+> screen — the rail-calls-avoided column is on screen, the cost column is not.
 
 ## How the existing customer is identified
 `normaliseCnic()` strips formatting, then HMAC under the HSM pepper. The employer
@@ -1978,8 +2064,13 @@ the *same record*, not a second customer.
 | EWA | `ALLOW`, 3 calls avoided, PKR 80 |
 | SBL (after step-up to A3) | `ALLOW`, 4 calls avoided, PKR 100 |
 
+*API values. The calls-avoided figures are on screen; the rupee figures are not —
+see the revision note in §0.*
+
 ### Customer E — Update / new version
-Take **Customer B** and run **Run missing checks → Salary-Backed Lending**.
+Take **Customer B** and open `/apply/SBL?subjectId=…`, then complete the selfie.
+*(Revised 24 Aug 2026 — this read "run **Run missing checks → Salary-Backed
+Lending**" from the profile; that control no longer exists.)*
 
 | | |
 |---|---|
@@ -2023,13 +2114,15 @@ typed in — use the personas above:
 | 1–2 | Point at the *Confirmation mix* donut | "Today those two things are stored identically." |
 | 2–3 | Open an A2 customer profile | "Mint is the ledger. Slate is core banking. The ledger does not know their name." |
 | 3–6 | **`/apply/SBL` — the headline** | **"One selfie instead of four checks."** |
-| 6–7 | Profile → **Run missing checks** → run it | "The old version is superseded, not edited. Still there, hash-linked." |
+| 6–7 | Finish the selfie, then open the profile | "The old version is superseded, not edited. Still there, hash-linked — and the customer did that, not us." |
 | 7–8 | `/onboarding` → sample list | "228 activate today with zero external calls. ABHI cannot produce this screen." |
 | 8–9 | `/audit` | "This is what an SBP inspector would be handed." |
 | 9–10 | The close (§28) | The ask. |
 
 **Skip:** consent, proofs, the queue, policies, chaincode internals.
-**Say once, early:** "The money is modelled. The ratio is the claim, not the rupees."
+**Say once, early:** "The ratio is the claim, not the rupees." *(Revised 24 Aug 2026 —
+this read "The money is modelled…". There is no money on screen to caveat any more; if
+you quote a rupee figure it comes from outside the console and is a projection.)*
 
 ---
 

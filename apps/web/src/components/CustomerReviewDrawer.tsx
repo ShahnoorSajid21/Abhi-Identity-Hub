@@ -138,6 +138,7 @@ export function CustomerReviewDrawer({
                 subjectId={subjectId}
                 displayName={detail.data.cbsProfile.displayName}
                 record={detail.data.record}
+                surface="review"
               />
 
               <Link

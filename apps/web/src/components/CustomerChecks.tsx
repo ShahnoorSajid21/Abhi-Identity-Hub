@@ -31,10 +31,20 @@ export function CustomerChecks({
   subjectId,
   displayName,
   record,
+  /**
+   * Where this panel is mounted.
+   *
+   * Only the empty state cares, and it cares because it used to point at a
+   * control: "use Check eligibility above". That is true on the profile and
+   * false in the review drawer, which has no such button — the reviewer would
+   * have been sent looking for something that is not on their screen.
+   */
+  surface = 'profile',
 }: {
   subjectId: string;
   displayName: string;
   record: CustomerRecord;
+  surface?: 'profile' | 'review';
 }) {
   const application = useApplication(subjectId);
 
@@ -43,9 +53,19 @@ export function CustomerChecks({
       <section className="card p-5">
         <h2 className="text-section font-semibold text-ink-900">Customer checks</h2>
         <p className="mt-3 text-cell leading-6 text-ink-500">
-          No application is in progress. Use <span className="font-medium">Check eligibility</span>{' '}
-          above to open one — that identifies the checks {displayName} needs and makes them
-          available in the customer app.
+          {surface === 'profile' ? (
+            <>
+              No application is in progress. Use{' '}
+              <span className="font-medium">Check eligibility</span> above to open one — that
+              identifies the checks {displayName} needs and makes them available in the customer
+              app.
+            </>
+          ) : (
+            <>
+              No application is in progress. One is opened from {displayName}’s own profile, which
+              identifies the checks they need and makes them available in the customer app.
+            </>
+          )}
         </p>
       </section>
     );
