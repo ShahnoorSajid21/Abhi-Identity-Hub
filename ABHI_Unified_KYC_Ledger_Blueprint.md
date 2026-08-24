@@ -36,12 +36,25 @@
 
 > **Amendment note — 24 August 2026**
 >
-> **The POC's cost dashboard was withdrawn, and every figure denominated in rupees
-> was removed from the console interface with it.** This document specifies that
-> dashboard in six places — §9.4 (Phase 4 deliverables, the S3 task table, and the POC
-> acceptance criteria), §10.5 (the Sprint 3 backlog and demo spine item 9), and §12.8
-> item 36. Each is annotated in bold where it appears. As with the 23 August review,
-> nothing in the original text was deleted.
+> Two changes were made to the POC console on 24 August. The first contradicts this
+> document in six places; the second moves the console **towards** it. Both are
+> annotated where they bite, and as with the 23 August review nothing in the original
+> text was deleted.
+>
+> **1 — The customer now performs their own step-up checks.** The console had a
+> profile control, *"Run missing checks"*, that ran a customer's outstanding
+> verification from the operator's screen. It was removed. The checks are performed by
+> the customer in the customer-facing journey, which commits the step-up when the last
+> one clears; the internal profile shows their status and offers no control that would
+> perform one. **This brings the console closer to §8.2's separation** — writes tracing
+> to a customer journey rather than to a member of staff — and §8.2 is annotated with
+> what still falls short of it. It changes nothing in the architecture this document
+> specifies; it corrects an interface that had drifted from it.
+>
+> **2 — The cost dashboard was withdrawn, and every figure denominated in rupees was
+> removed from the console interface with it.** This document specifies that dashboard
+> in six places — §9.4 (Phase 4 deliverables, the S3 task table, and the POC acceptance
+> criteria), §10.5 (the Sprint 3 backlog and demo spine item 9), and §12.8 item 36.
 >
 > **The economic model is unaffected.** The unit-cost table, the sensitivity analysis
 > and the ROI case are arguments made on paper, and none of them ran through the
@@ -1978,6 +1991,30 @@ flowchart TB
 
 **No human being holds a credential that can write a KYC record.** Writes originate from the gateway service identity, under a request authenticated to a product service. Compliance officers hold credentials for status operations only — suspend, reinstate, shred — never for registration or update. This separation is what makes the audit trail meaningful: a `RegisterKYC` can always be traced to a customer journey, never to a person with database access.
 
+> **Annotated 24 August 2026 — the POC console moved towards this paragraph, and has
+> not arrived.**
+>
+> **The credential claim was never at risk.** Every write in the POC goes through the
+> gateway service identity; no console persona has ever held a ledger credential. What
+> was at odds with this paragraph was the second half of it — the claim that an update
+> traces to a **customer journey rather than to a person**.
+>
+> Until 24 August the customer profile carried a *"Run missing checks"* button that
+> initiated `POST /kyc/update` from a member of staff's screen, for checks the customer
+> had not performed. The credential was the gateway's; the intent was an operator's.
+> That control is removed. A step-up is now committed by the customer's own journey
+> when they clear their last outstanding check, and the ledger's `updateReason` records
+> it as such — *"Customer completed Live selfie check for SBL"*.
+>
+> **What still falls short, stated so this is not read as conformance.** The
+> verification queue retains an operator-initiated *"Run … only"* step-up, which is the
+> same pattern on a different screen and is deliberately kept for the operations
+> workflow. And the whole of the table above is aspirational in the POC: the console
+> authenticates with `X-ABHI-MSP` headers, not mTLS or SSO or MFA, and
+> `services/gateway/src/security.ts` refuses header identity outright when
+> `NODE_ENV=production` precisely because it is not an identity mechanism. Nothing in
+> the POC demonstrates the IAM design in this section.
+
 ## 8.3 MSP governance
 
 | Control | Requirement |
@@ -3053,7 +3090,7 @@ cipher.setAAD(aad);
 
 **31.** Vite + React + TypeScript + Tailwind + shadcn/ui.
 **32.** Product simulator — wallet, EWA, SBL, MF; each shows the decision, the reason, and the rail calls made.
-**33.** Employer bulk upload — CSV in, activation split out.
+**33.** Employer bulk upload — CSV in, activation split out. **Extended 24 Aug 2026:** the Review stage now lists the customers in each bucket with a per-row *View profile* opening a slide-over — KYC status, confirmed checks, identifiers and check progress — so a reviewer can inspect employees without losing the upload they are reviewing within. It reuses the existing customer record; no duplicate customer data was introduced.
 **34.** Compliance console — suspend, reinstate, shred, with mandatory reason fields.
 **35.** Auditor view — version chain with per-link integrity status, disclosure log.
 **36.** Cost dashboard — calls made, calls avoided, cost avoided, observed reuse rate. **Withdrawn 24 Aug 2026; steps 31–35 stand as written.** Three of these four survive: the observed reuse rate is on the dashboard as a percentage of requests, calls avoided is on the queue request page and the application review screen, and calls made is on the registration receipt. **Only `cost avoided` is gone** — as is every other rupee figure in the console. What was withdrawn is the money, not the measurement.
