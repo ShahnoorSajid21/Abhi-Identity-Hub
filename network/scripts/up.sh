@@ -115,15 +115,20 @@ echo "==> 6/6 anchor peers"
 # baked them into the block joined in step 4. The configtxlator dance is for
 # networks whose profile omits them; this one does not. Verified rather than
 # assumed, because assuming is how the omission happens.
+#
+# Checked by counting the AnchorPeers config VALUES, not by grepping for the
+# hostnames: configtxgen -inspectBlock emits each config value as base64
+# protobuf, so peer0.bank.abhi.local never appears as text and a grep for it
+# reports absent no matter what the block contains. Three organizations, three
+# values.
 BLOCK_JSON="$(FABRIC_CFG_PATH="${CONFIGTX_CFG}" configtxgen -inspectBlock \
   "./channel-artifacts/${CHANNEL}.block" 2>/dev/null || true)"
-for domain in bank lending compliance; do
-  if printf '%s' "${BLOCK_JSON}" | grep -q "peer0.${domain}.abhi.local"; then
-    echo "    ${domain}: anchor peer present in the channel block"
-  else
-    echo "::warning::${domain} has no anchor peer in the channel block"
-  fi
-done
+ANCHOR_COUNT="$(printf '%s' "${BLOCK_JSON}" | grep -c '"AnchorPeers"' || true)"
+if [ "${ANCHOR_COUNT}" -ge 3 ]; then
+  echo "    anchor peers present for ${ANCHOR_COUNT} organizations"
+else
+  echo "::warning::only ${ANCHOR_COUNT} AnchorPeers values in the channel block; expected 3"
+fi
 
 echo ""
 echo "Network up. Next:  npm run network:deploy-cc"

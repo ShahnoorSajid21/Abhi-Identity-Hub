@@ -7,6 +7,10 @@
 # organization, that is almost always why.
 set -euo pipefail
 
+# See network/scripts/up.sh: `set -e` reports an exit code and nothing else,
+# which is unusable in CI. Name the line, the code and the command.
+trap 'rc=$?; echo "::error file=network/scripts/deploy-chaincode.sh,line=${LINENO}::deploy-chaincode.sh failed at line ${LINENO} (exit ${rc}): ${BASH_COMMAND}"; exit $rc' ERR
+
 CC_NAME="kyc-registry"
 CC_VERSION="${CC_VERSION:-1.0}"
 CC_SEQUENCE="${CC_SEQUENCE:-1}"
