@@ -98,7 +98,21 @@ join_peer() {
   export CORE_PEER_TLS_ROOTCERT_FILE="${ORG_BASE}/${domain}/peers/peer0.${domain}/tls/ca.crt"
   export CORE_PEER_MSPCONFIGPATH="${ORG_BASE}/${domain}/users/Admin@${domain}/msp"
   export CORE_PEER_ADDRESS="localhost:${port}"
-  peer channel join -b "./channel-artifacts/${CHANNEL}.block" 2>/dev/null || echo "    ${msp} already joined"
+  # This was `2>/dev/null || echo "already joined"`, which discarded the reason
+  # for every failure and then reported it as success — so a peer that could
+  # not join at all looked identical to one that already had. Fabric words the
+  # benign case as "ledger already exists"; everything else is fatal.
+  if ! JOIN_OUT="$(peer channel join -b "./channel-artifacts/${CHANNEL}.block" 2>&1)"; then
+    if printf '%s' "${JOIN_OUT}" | grep -qi 'ledger.*already exists'; then
+      echo "    ${msp} already joined"
+    else
+      echo "::error::${msp} could not join ${CHANNEL}:"
+      printf '%s\n' "${JOIN_OUT}" | while IFS= read -r line; do
+        echo "::error::  ${line}"
+      done
+      return 1
+    fi
+  fi
   echo "    ${msp}: $(peer channel list 2>/dev/null | tail -1)"
 }
 join_peer ABHIBankMSP       7051 bank.abhi.local

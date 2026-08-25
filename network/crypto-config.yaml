@@ -7,6 +7,14 @@
 #
 # Using cryptogen output above a development environment is a control failure.
 # See docs/SECURITY_AUDIT.md finding SEC-03.
+#
+# SANS. Every node gets localhost and 127.0.0.1 as subject alternative names
+# because the peer CLI and the gateway both dial localhost:<port> from the
+# host, while the certificate's common name is the container hostname. Without
+# them TLS fails with "certificate is valid for peer0.bank.abhi.local, not
+# localhost" and nothing can be installed, approved or invoked. Production
+# issues per-node certificates from Fabric CA for the real DNS names and has
+# no localhost in them at all.
 ---
 OrdererOrgs:
   - Name: Orderer
@@ -14,8 +22,11 @@ OrdererOrgs:
     EnableNodeOUs: true
     Specs:
       - Hostname: orderer0
+        SANS: [localhost, 127.0.0.1]
       - Hostname: orderer1
+        SANS: [localhost, 127.0.0.1]
       - Hostname: orderer2
+        SANS: [localhost, 127.0.0.1]
 
 PeerOrgs:
   - Name: ABHIBank
@@ -23,6 +34,7 @@ PeerOrgs:
     EnableNodeOUs: true
     Template:
       Count: 1        # production: 2 peers across >=2 availability zones
+      SANS: [localhost, 127.0.0.1]
     Users:
       Count: 1        # the gateway client identity
 
@@ -31,6 +43,7 @@ PeerOrgs:
     EnableNodeOUs: true
     Template:
       Count: 1
+      SANS: [localhost, 127.0.0.1]
     Users:
       Count: 1
 
@@ -39,5 +52,6 @@ PeerOrgs:
     EnableNodeOUs: true
     Template:
       Count: 1
+      SANS: [localhost, 127.0.0.1]
     Users:
       Count: 2        # gateway client + a named compliance officer
