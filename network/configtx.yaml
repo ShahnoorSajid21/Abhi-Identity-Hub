@@ -9,7 +9,7 @@ Organizations:
   - &OrdererOrg
     Name: OrdererOrg
     ID: OrdererMSP
-    MSPDir: ../organizations/ordererOrganizations/abhi.local/msp
+    MSPDir: organizations/ordererOrganizations/abhi.local/msp
     Policies:
       Readers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
       Writers: { Type: Signature, Rule: "OR('OrdererMSP.member')" }
@@ -22,7 +22,7 @@ Organizations:
   - &ABHIBank
     Name: ABHIBankMSP
     ID: ABHIBankMSP
-    MSPDir: ../organizations/peerOrganizations/bank.abhi.local/msp
+    MSPDir: organizations/peerOrganizations/bank.abhi.local/msp
     Policies:
       Readers:     { Type: Signature, Rule: "OR('ABHIBankMSP.admin','ABHIBankMSP.peer','ABHIBankMSP.client')" }
       Writers:     { Type: Signature, Rule: "OR('ABHIBankMSP.admin','ABHIBankMSP.client')" }
@@ -35,7 +35,7 @@ Organizations:
   - &ABHILending
     Name: ABHILendingMSP
     ID: ABHILendingMSP
-    MSPDir: ../organizations/peerOrganizations/lending.abhi.local/msp
+    MSPDir: organizations/peerOrganizations/lending.abhi.local/msp
     Policies:
       Readers:     { Type: Signature, Rule: "OR('ABHILendingMSP.admin','ABHILendingMSP.peer','ABHILendingMSP.client')" }
       Writers:     { Type: Signature, Rule: "OR('ABHILendingMSP.admin','ABHILendingMSP.client')" }
@@ -48,7 +48,7 @@ Organizations:
   - &ABHICompliance
     Name: ABHIComplianceMSP
     ID: ABHIComplianceMSP
-    MSPDir: ../organizations/peerOrganizations/compliance.abhi.local/msp
+    MSPDir: organizations/peerOrganizations/compliance.abhi.local/msp
     Policies:
       Readers:     { Type: Signature, Rule: "OR('ABHIComplianceMSP.admin','ABHIComplianceMSP.peer','ABHIComplianceMSP.client')" }
       Writers:     { Type: Signature, Rule: "OR('ABHIComplianceMSP.admin','ABHIComplianceMSP.client')" }
@@ -90,16 +90,16 @@ Orderer: &OrdererDefaults
     Consenters:
       - Host: orderer0.abhi.local
         Port: 7050
-        ClientTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer0.abhi.local/tls/server.crt
-        ServerTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer0.abhi.local/tls/server.crt
+        ClientTLSCert: organizations/ordererOrganizations/abhi.local/orderers/orderer0.abhi.local/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/abhi.local/orderers/orderer0.abhi.local/tls/server.crt
       - Host: orderer1.abhi.local
         Port: 8050
-        ClientTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer1.abhi.local/tls/server.crt
-        ServerTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer1.abhi.local/tls/server.crt
+        ClientTLSCert: organizations/ordererOrganizations/abhi.local/orderers/orderer1.abhi.local/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/abhi.local/orderers/orderer1.abhi.local/tls/server.crt
       - Host: orderer2.abhi.local
         Port: 9050
-        ClientTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer2.abhi.local/tls/server.crt
-        ServerTLSCert: ../organizations/ordererOrganizations/abhi.local/orderers/orderer2.abhi.local/tls/server.crt
+        ClientTLSCert: organizations/ordererOrganizations/abhi.local/orderers/orderer2.abhi.local/tls/server.crt
+        ServerTLSCert: organizations/ordererOrganizations/abhi.local/orderers/orderer2.abhi.local/tls/server.crt
   BatchTimeout: 2s
   BatchSize:
     MaxMessageCount: 10

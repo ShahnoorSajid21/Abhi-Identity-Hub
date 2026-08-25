@@ -7,6 +7,20 @@ import {
 } from 'node:crypto';
 
 /**
+ * GCM parameters, named because the tag length has to be stated rather than
+ * defaulted.
+ *
+ * Node accepts any GCM tag length the caller happens to pass to setAuthTag —
+ * 4, 8, 12, 13, 14, 15 or 16 bytes — unless authTagLength pins it at
+ * construction. A caller that slices a tag out of an attacker-supplied blob
+ * therefore lets the attacker choose how much authentication to verify, and a
+ * short tag is materially easier to forge. Pinned at 16 on every cipher and
+ * decipher in this file and in vault.ts.
+ */
+export const GCM_IV_BYTES = 12;
+export const GCM_TAG_BYTES = 16;
+
+/**
  * HSM port.
  *
  * Production is a PKCS#11 session against a FIPS 140-2 Level 3 appliance with
@@ -77,18 +91,28 @@ export class SoftwareHsm implements Hsm {
   }
 
   wrapDek(dek: Buffer): Promise<Buffer> {
-    const iv = randomBytes(12);
-    const c = createCipheriv('aes-256-gcm', this.#kek, iv);
+    const iv = randomBytes(GCM_IV_BYTES);
+    const c = createCipheriv('aes-256-gcm', this.#kek, iv, { authTagLength: GCM_TAG_BYTES });
     const ct = Buffer.concat([c.update(dek), c.final()]);
     return Promise.resolve(Buffer.concat([iv, c.getAuthTag(), ct]));
   }
 
-  unwrapDek(wrapped: Buffer): Promise<Buffer> {
-    const iv = wrapped.subarray(0, 12);
-    const tag = wrapped.subarray(12, 28);
-    const ct = wrapped.subarray(28);
-    const d = createDecipheriv('aes-256-gcm', this.#kek, iv);
+  // `async` rather than a bare Promise.resolve: this method can fail, and a
+  // method declared to return a Promise must REJECT rather than throw past its
+  // caller. Anyone holding it as `unwrapDek(blob).catch(handleCorruption)`
+  // would otherwise take the throw synchronously and never reach the handler.
+  async unwrapDek(wrapped: Buffer): Promise<Buffer> {
+    // Length-check before slicing. subarray() clamps rather than throwing, so
+    // a truncated blob yields a SHORT tag instead of an error — and GCM with a
+    // short tag is the weakness this guards against, not a malformed input.
+    if (wrapped.length < GCM_IV_BYTES + GCM_TAG_BYTES) {
+      throw new Error('wrapped DEK is shorter than its own IV and tag');
+    }
+    const iv = wrapped.subarray(0, GCM_IV_BYTES);
+    const tag = wrapped.subarray(GCM_IV_BYTES, GCM_IV_BYTES + GCM_TAG_BYTES);
+    const ct = wrapped.subarray(GCM_IV_BYTES + GCM_TAG_BYTES);
+    const d = createDecipheriv('aes-256-gcm', this.#kek, iv, { authTagLength: GCM_TAG_BYTES });
     d.setAuthTag(tag);
-    return Promise.resolve(Buffer.concat([d.update(ct), d.final()]));
+    return Buffer.concat([d.update(ct), d.final()]);
   }
 }

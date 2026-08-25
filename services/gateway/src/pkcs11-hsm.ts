@@ -144,7 +144,10 @@ export class Pkcs11Hsm implements Hsm {
     return Promise.resolve(Buffer.concat([Buffer.from(iv), ct]));
   }
 
-  unwrapDek(wrapped: Buffer): Promise<Buffer> {
+  // async for the same reason as SoftwareHsm.unwrapDek: decipher.once() throws
+  // on a bad tag, and the declared Promise return must carry that as a
+  // rejection rather than past the caller.
+  async unwrapDek(wrapped: Buffer): Promise<Buffer> {
     const iv = wrapped.subarray(0, 12);
     const body = wrapped.subarray(12);
     // See wrapDek: PKCS#11 session cipher, IV explicit, not node:crypto.
@@ -153,6 +156,6 @@ export class Pkcs11Hsm implements Hsm {
       { name: 'AES_GCM', params: new graphene.AesGcmParams(iv) },
       this.#kekKey,
     );
-    return Promise.resolve(decipher.once(body));
+    return decipher.once(body);
   }
 }

@@ -2,6 +2,7 @@ import { createCipheriv, createDecipheriv, randomBytes, randomUUID } from 'node:
 import type { VaultRecord } from '@abhi/types';
 import { fail } from '@abhi/types';
 import type { Hsm } from './hsm.ts';
+import { GCM_IV_BYTES, GCM_TAG_BYTES } from './hsm.ts';
 
 /**
  * The off-chain vault.
@@ -119,10 +120,10 @@ export class Vault {
   ): Promise<string> {
     const vaultRef = randomUUID();
     const dek = await this.#hsm.generateDek();
-    const iv = randomBytes(12);
+    const iv = randomBytes(GCM_IV_BYTES);
     const aad = aadFor(subjectId, version, this.#hsm.pepperEpoch);
 
-    const cipher = createCipheriv('aes-256-gcm', dek, iv);
+    const cipher = createCipheriv('aes-256-gcm', dek, iv, { authTagLength: GCM_TAG_BYTES });
     cipher.setAAD(aad);
     const ciphertext = Buffer.concat([
       cipher.update(Buffer.from(JSON.stringify(payload), 'utf8')),
@@ -153,9 +154,18 @@ export class Vault {
     this.#decryptCount += 1;
 
     const dek = await this.#hsm.unwrapDek(Buffer.from(row.wrappedDek, 'base64'));
-    const decipher = createDecipheriv('aes-256-gcm', dek, Buffer.from(row.iv, 'base64'));
+    const decipher = createDecipheriv('aes-256-gcm', dek, Buffer.from(row.iv, 'base64'), {
+      authTagLength: GCM_TAG_BYTES,
+    });
     decipher.setAAD(aadFor(row.subjectId, row.version, row.pepperEpoch));
-    decipher.setAuthTag(Buffer.from(row.authTag, 'base64'));
+
+    // The tag comes out of the stored row, so its length is whatever the store
+    // holds. authTagLength above makes Node reject anything but 16 bytes;
+    // checking here as well turns that into a vault error rather than an
+    // opaque OpenSSL one.
+    const authTag = Buffer.from(row.authTag, 'base64');
+    if (authTag.length !== GCM_TAG_BYTES) fail('ERR_INVALID_VAULTREF', 'bad auth tag length');
+    decipher.setAuthTag(authTag);
 
     try {
       const plain = Buffer.concat([

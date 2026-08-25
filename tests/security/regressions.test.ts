@@ -13,6 +13,7 @@ import {
 import { ATTRIBUTE_NAMES, ATTRIBUTE_SET_ID, demoAttributes, merkleRootHex } from '@abhi/merkle';
 import { harness, a2Attributes, CNIC_WALLET, CNIC_EXPIRY_OK } from '../fixture.ts';
 import { redact, scrubString } from '../../services/gateway/src/logging.ts';
+import { SoftwareHsm } from '../../services/gateway/src/hsm.ts';
 
 const SUBJECT = 'a'.repeat(64);
 const KNOWN = [...ATTRIBUTE_NAMES];
@@ -343,5 +344,52 @@ describe('SEC-15 · log redaction covers the CNIC format that actually arrives',
     const out = redact({ cnic: '61101-1234567-8', note: 'ok' }) as Record<string, unknown>;
     assert.equal(out['cnic'], '[REDACTED]');
     assert.equal(out['note'], 'ok');
+  });
+});
+
+/*
+ * SEC-19 · GCM authentication tag length is pinned, not inherited
+ *
+ * Found by the Semgrep gate on 25 August 2026, once that gate ran for the
+ * first time. node:crypto accepts any GCM tag length the caller hands to
+ * setAuthTag — 4, 8, 12, 13, 14, 15 or 16 bytes — unless authTagLength is
+ * given at construction. SoftwareHsm.unwrapDek sliced its tag out of the
+ * wrapped blob with subarray(12, 28), and subarray CLAMPS instead of
+ * throwing, so a caller who supplied a 20-byte blob got an 8-byte tag that
+ * Node then happily verified at eight bytes.
+ *
+ * Eight bytes of GCM tag is 2^-64 forgery odds instead of 2^-128, on the
+ * envelope that wraps every DEK in the vault. The fix pins the length on both
+ * the cipher and the decipher and refuses a blob too short to contain one.
+ */
+describe('SEC-19 · GCM tag length is pinned', () => {
+  test('a truncated wrapped DEK is refused rather than short-tag verified', async () => {
+    const hsm = SoftwareHsm.fromSeeds('pepper-seed-sec19', 'kek-seed-sec19');
+    const wrapped = await hsm.wrapDek(await hsm.generateDek());
+
+    // 12-byte IV + 16-byte tag is the floor. Anything below it used to yield a
+    // tag shorter than 16 bytes instead of an error.
+    for (const length of [0, 12, 20, 27]) {
+      await assert.rejects(
+        () => hsm.unwrapDek(wrapped.subarray(0, length)),
+        /shorter than its own IV and tag/,
+        `a ${length}-byte blob must be refused`,
+      );
+    }
+  });
+
+  test('a full-length wrapped DEK still round-trips', async () => {
+    const hsm = SoftwareHsm.fromSeeds('pepper-seed-sec19', 'kek-seed-sec19');
+    const dek = await hsm.generateDek();
+    const back = await hsm.unwrapDek(await hsm.wrapDek(dek));
+    assert.deepEqual(back, dek);
+  });
+
+  test('a tampered tag still fails the authentication check', async () => {
+    const hsm = SoftwareHsm.fromSeeds('pepper-seed-sec19', 'kek-seed-sec19');
+    const wrapped = await hsm.wrapDek(await hsm.generateDek());
+    const tampered = Buffer.from(wrapped);
+    tampered[12] = tampered[12]! ^ 0xff;
+    await assert.rejects(() => hsm.unwrapDek(tampered));
   });
 });
