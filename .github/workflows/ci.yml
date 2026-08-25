@@ -173,14 +173,27 @@ jobs:
       # CLI; the public rule packs need no account and no token. Pinned rather
       # than floating: a SAST gate that silently changes what it enforces is
       # not a gate. `--error` is what makes a finding fail the build.
+      # Run from the pinned official image rather than installing through pip
+      # or pipx: the runner's Python is externally managed and its packaging
+      # rules are not something this gate should depend on.
       - name: Semgrep
         run: |
-          pipx install semgrep==1.174.0
-          semgrep scan --error --metrics=off \
-            --config p/typescript \
-            --config p/security-audit \
-            --config p/secrets \
-            --exclude node_modules --exclude dist
+          set -o pipefail
+          docker run --rm -v "$PWD:/src" -w /src semgrep/semgrep:1.174.0 \
+            semgrep scan --error --metrics=off \
+              --config p/typescript \
+              --config p/security-audit \
+              --config p/secrets \
+              --exclude node_modules --exclude dist 2>&1 | tee semgrep.out || {
+            # Put the reason on the run summary. Findings are the point of the
+            # gate, and a gate whose output is buried in a log nobody opens
+            # gets muted rather than fixed.
+            echo "::error::Semgrep gate failed. Tail of output:"
+            tail -n 40 semgrep.out | while IFS= read -r line; do
+              echo "::error::${line}"
+            done
+            exit 1
+          }
       - name: Trivy filesystem scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:

@@ -7,6 +7,12 @@
 # up half-configured fails later with errors that look like network faults.
 set -euo pipefail
 
+# `set -e` kills the script at the first failure and says nothing about which
+# one. That is survivable at a terminal, where the preceding output is still on
+# screen, and useless in CI, where the reason ends up buried in a log. Report
+# the failing line as a workflow annotation so it lands on the run summary.
+trap 'rc=$?; echo "::error file=network/scripts/up.sh,line=${LINENO}::up.sh failed at line ${LINENO} (exit ${rc}): ${BASH_COMMAND}"; exit $rc' ERR
+
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
@@ -26,7 +32,7 @@ export PATH="${ROOT}/../bin:${PATH}"
 CONFIGTX_CFG="${ROOT}"
 FABRIC_BIN_CFG="${FABRIC_BIN_CFG:-${ROOT}/../config}"
 
-need() { command -v "$1" >/dev/null 2>&1 || { echo "missing: $1"; exit 1; }; }
+need() { command -v "$1" >/dev/null 2>&1 || { echo "::error::missing prerequisite: $1"; exit 1; }; }
 need docker
 need cryptogen
 need configtxgen
@@ -34,15 +40,15 @@ need peer
 need osnadmin
 
 [ -f "${CONFIGTX_CFG}/configtx.yaml" ] || {
-  echo "missing: ${CONFIGTX_CFG}/configtx.yaml"; exit 1; }
+  echo "::error::missing ${CONFIGTX_CFG}/configtx.yaml"; exit 1; }
 [ -f "${FABRIC_BIN_CFG}/core.yaml" ] || {
-  echo "missing: ${FABRIC_BIN_CFG}/core.yaml"
+  echo "::error::missing ${FABRIC_BIN_CFG}/core.yaml"
   echo "  peer reads core.yaml from FABRIC_CFG_PATH. It ships with the Fabric"
   echo "  binaries — run install-fabric.sh, or set FABRIC_BIN_CFG to wherever"
   echo "  its config/ directory landed."
   exit 1; }
 [ -f "${ROOT}/.env" ] || {
-  echo "missing: ${ROOT}/.env  (cp network/.env.example network/.env)"; exit 1; }
+  echo "::error::missing ${ROOT}/.env  (cp network/.env.example network/.env)"; exit 1; }
 
 echo "==> 1/6 crypto material"
 if [ ! -d organizations/peerOrganizations ]; then
@@ -50,7 +56,8 @@ if [ ! -d organizations/peerOrganizations ]; then
 else
   echo "    (already generated — delete network/organizations to regenerate)"
 fi
-[ -d organizations/peerOrganizations/bank.abhi.local ] || { echo "FAILED"; exit 1; }
+[ -d organizations/peerOrganizations/bank.abhi.local ] || {
+  echo "::error::cryptogen produced no organizations/peerOrganizations/bank.abhi.local"; exit 1; }
 
 echo "==> 2/6 channel genesis block"
 mkdir -p channel-artifacts
