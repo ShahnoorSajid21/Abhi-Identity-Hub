@@ -311,12 +311,12 @@ const REQUIREMENTS: Requirement[] = [
   {
     id: 'O-01', area: 'Ops', priority: 'MUST',
     requirement: 'CI gates crypto vectors before anything else',
-    check: fileHas('ci-cd/.github/workflows/ci.yml', 'crypto-vectors', 'needs: crypto-vectors'),
+    check: fileHas('.github/workflows/ci.yml', 'crypto-vectors', 'needs: crypto-vectors'),
   },
   {
     id: 'O-02', area: 'Ops', priority: 'MUST',
     requirement: 'CI blocks committed key material and CNIC literals',
-    check: fileHas('ci-cd/.github/workflows/ci.yml', 'Key material must never be committed'),
+    check: fileHas('.github/workflows/ci.yml', 'Key material must never be committed'),
   },
   {
     id: 'O-03', area: 'Ops', priority: 'SHOULD',
@@ -377,7 +377,7 @@ const REQUIREMENTS: Requirement[] = [
   {
     id: 'R-08', area: 'Remediation', priority: 'SHOULD',
     requirement: 'SEC-12 — signed SBOM and signed image',
-    check: fileHas('ci-cd/.github/workflows/ci.yml', 'sbom-action', 'cosign sign', 'cosign attest'),
+    check: fileHas('.github/workflows/ci.yml', 'sbom-action', 'cosign sign', 'cosign attest'),
   },
   {
     id: 'R-09', area: 'Remediation', priority: 'MUST',

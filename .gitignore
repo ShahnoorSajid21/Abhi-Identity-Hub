@@ -27,6 +27,19 @@ vault/data/
 .ledger-state.json
 .DS_Store
 
+# Terraform. State and plans hold resource identifiers and sometimes secrets;
+# backend.hcl names the state container, which is a globally unique Azure DNS
+# label and does not belong in a public repository. backend.hcl.example is
+# tracked and carries the shape.
+infrastructure/terraform/backend*.hcl
+!infrastructure/terraform/backend.hcl.example
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+*.auto.tfvars
+terraform.tfvars
+
 # Agent tooling installed into the working tree by assistant sessions.
 # Not part of the POC: it is local developer tooling that happens to live
 # here, and committing it puts ~900K of unrelated skill definitions into a

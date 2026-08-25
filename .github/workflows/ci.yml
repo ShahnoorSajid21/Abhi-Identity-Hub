@@ -1,6 +1,8 @@
 # ABHI Unified KYC Ledger — CI
 #
-# Copy to .github/workflows/ci.yml at the repository root.
+# This file must stay at .github/workflows/ from the repository root. GitHub
+# reads workflows from that path and nowhere else; it lived under ci-cd/ until
+# 25 Aug 2026, which meant nine gates that looked like they ran and did not.
 #
 # The pipeline is ordered so the cheapest, highest-signal gates fail first.
 # Note that `vectors` runs BEFORE the unit tests: if the cryptographic

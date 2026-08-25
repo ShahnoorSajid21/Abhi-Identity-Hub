@@ -24,12 +24,17 @@ terraform {
 
   # Remote state holds resource identifiers, not secrets, but it is still
   # access-controlled and versioned.
-  backend "azurerm" {
-    resource_group_name  = "abhi-tfstate-rg"
-    storage_account_name = "abhitfstate"
-    container_name       = "kyc-ledger"
-    key                  = "prod.terraform.tfstate"
-  }
+  #
+  # Deliberately a PARTIAL configuration. Azure storage account names are
+  # globally unique DNS labels, so naming the state container here would tell
+  # any reader of a public repository exactly where production state lives —
+  # and would let a stranger squat the name before we create it. Supply the
+  # coordinates at init time instead:
+  #
+  #   terraform init -backend-config=backend.hcl
+  #
+  # See backend.hcl.example. backend.hcl is gitignored.
+  backend "azurerm" {}
 }
 
 ###############################################################################

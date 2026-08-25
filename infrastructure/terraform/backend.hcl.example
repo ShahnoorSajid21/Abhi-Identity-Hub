@@ -1,0 +1,17 @@
+# Remote state coordinates for the azurerm backend.
+#
+#   cp backend.hcl.example backend.hcl     # then fill in the real values
+#   terraform init -backend-config=backend.hcl
+#
+# backend.hcl is gitignored. These are not secrets — access to the state
+# container is controlled by Azure RBAC, not by the obscurity of its name —
+# but a globally unique storage account name in a public repository is free
+# reconnaissance, and an uncreated one is squattable. Keep them out of git.
+#
+# One file per environment (backend.dev.hcl, backend.prod.hcl) if you would
+# rather not edit a single file between runs.
+
+resource_group_name  = "<state resource group>"
+storage_account_name = "<state storage account>"
+container_name       = "<state container>"
+key                  = "<environment>.terraform.tfstate"

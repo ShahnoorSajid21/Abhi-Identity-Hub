@@ -92,7 +92,7 @@ packages/canonical/    deterministic JSON · type-tagged value encoding
 network/               Fabric: 3 MSPs, Raft ordering, endorsement policy
 vault/                 PostgreSQL schema · envelope encryption · crypto-shred
 infrastructure/        Kubernetes · hardening · default-deny egress
-ci-cd/                 9-gate pipeline, crypto vectors gated first
+.github/workflows/     9-gate pipeline, crypto vectors gated first
 tests/                 e2e · integration · security
 ```
 
@@ -216,6 +216,16 @@ runbook, the security audit, the compliance control matrix, the gap analysis and
 the readiness assessment — is held separately and goes to Compliance directly.
 Source comments throughout this repository cite those documents by name; the
 citations are provenance, not links, and nothing in the build reads them.
+
+---
+
+## Licence
+
+Proprietary — © 2026 ABHI, all rights reserved. See [LICENSE](LICENSE).
+
+The source is published so it can be read and assessed. That is not a grant of
+rights: nothing here may be deployed, reused or built upon without a written
+agreement. Reading and evaluating are the permitted uses.
 
 ---
 
