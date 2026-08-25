@@ -4,7 +4,7 @@ import type { Attribute } from './tree.ts';
 
 /**
  * Attribute set ABHI-KYC-ATTRS-v1, drawn directly from the Asaan Digital
- * Account journey (Consolidated Product Manual v2, Part One §2).
+ * Account journey as ABHI's product documentation defines it.
  *
  * Adding an attribute produces v2 and a NEW root — it never mutates v1 records.
  * Mutating the set in place would invalidate every historical root in the bank.

@@ -957,8 +957,8 @@ export const NOTES = {
   /**
    * Employer upload — what a bulk upload does NOT do.
    *
-   * Consolidated Product Manual v2 §8.2: the bulk template carries fifteen
-   * columns and verifies none of them. An employee uploaded this way is an
+   * ABHI's employer bulk template carries fifteen columns and verifies none
+   * of them. An employee uploaded this way is an
    * assertion by their employer, which is exactly the A0 rung of the ladder.
    * Saying so on the screen is the difference between the console reporting
    * a fact and the console flattering the programme.
@@ -971,15 +971,15 @@ export const NOTES = {
   /**
    * The regulatory position, stated where it is relevant.
    *
-   * Product Manual §6.1 puts full KYC/CDD on the employee at disbursement,
-   * and §6.3a puts CNIC screening and the e-CIB check with ABHI Bank at the
-   * same point. Neither attaches to the employer upload, and reuse cannot
-   * displace either.
+   * ABHI's product policy puts full KYC/CDD on the employee at disbursement,
+   * and puts CNIC screening and the e-CIB check with ABHI Bank at that same
+   * point. Neither attaches to the employer upload, and reuse cannot displace
+   * either.
    */
   employerUploadCompliance:
-    'Full KYC/CDD applies to the employee at disbursement, not at upload ' +
-    '(Product Manual §6.1). CNIC screening and the e-CIB check are performed ' +
-    'by ABHI Bank on every origination (§6.3a) and are never reused.',
+    'Full KYC/CDD applies to the employee at disbursement, not at upload. ' +
+    'CNIC screening and the e-CIB check are performed by ABHI Bank on every ' +
+    'origination, under the same policy, and are never reused.',
 
   /** The lending ceiling these employees will draw against, once activated. */
   employerExposureCeiling:
@@ -989,7 +989,7 @@ export const NOTES = {
 
   /** Why the CNIC column is normalised before anything else happens. */
   employerCnicNormalised:
-    'The employer template issues CNICs without dashes (§8.2) while the app ' +
+    'The employer template issues CNICs without dashes while the app ' +
     'captures them with. Both are normalised to the same subject before ' +
     'lookup — otherwise one person becomes two records.',
 

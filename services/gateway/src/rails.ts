@@ -27,7 +27,7 @@ export const DEFAULT_RAIL_COSTS: Readonly<Record<VerificationMethod, RailCost>> 
   LIVENESS: { method: 'LIVENESS', provider: 'LIVENESS_PROVIDER', unitCostPkr: 20 },
 });
 
-/** Daily attempt cap per method, per subject (Product Manual Part Two 9.3). */
+/** Daily attempt cap per method, per subject, set by ABHI product policy. */
 export const DAILY_ATTEMPT_CAP = 3;
 
 export interface RailResult {

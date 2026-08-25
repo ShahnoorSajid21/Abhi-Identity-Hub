@@ -101,7 +101,7 @@ export function PoliciesPage() {
       <p className="mt-2 max-w-3xl text-body text-white/75">{NOTES.policyGovernance}</p>
 
       {/* The pending state is shown rather than hidden. These values are
-          engineering defaults drawn from the product manual; Compliance and the
+          engineering defaults drawn from ABHI's product documentation; Compliance and the
           product owner have not signed them off, and a screen that implied they
           had would be the kind of overclaim this project cannot afford. */}
       {anyPending && (

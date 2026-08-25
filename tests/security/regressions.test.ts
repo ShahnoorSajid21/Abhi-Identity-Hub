@@ -279,8 +279,8 @@ describe('SEC-15 · log redaction covers the CNIC format that actually arrives',
   /*
    * The redactor matched `\d{13,}` only, so `6110112345678` was masked and
    * `61101-1234567-8` sailed through. The dashed form is the one Pakistani
-   * systems use — the Product Manual specifies `00000-0000000-0` on the CNIC
-   * entry screen (Part Two §9.1) — and two live GET endpoints take the CNIC in
+   * systems use, and the one ABHI's own CNIC entry screen specifies — and two
+   * live GET endpoints take the CNIC in
    * a query string that the request logger writes out verbatim as `path`.
    *
    * No coding mistake was needed to reach this. One customer lookup wrote a

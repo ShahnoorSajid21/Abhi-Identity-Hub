@@ -49,11 +49,11 @@ import { CustomerReviewDrawer } from '../components/CustomerReviewDrawer.tsx';
  * mirrored here, because a mirrored constant is a number waiting to disagree
  * with the one /metrics reports.
  *
- * WHAT AN UPLOAD IS NOT. Per Consolidated Product Manual v2 §8.2, the bulk
- * template carries fifteen columns and verifies none of them: an uploaded
- * employee is their employer's assertion. Full KYC/CDD attaches to the
- * employee at disbursement (§6.1), and CNIC screening plus the e-CIB check are
- * performed by ABHI Bank on every origination (§6.3a). None of that is
+ * WHAT AN UPLOAD IS NOT. ABHI's employer bulk template carries fifteen
+ * columns and verifies none of them: an uploaded employee is their employer's
+ * assertion. Under ABHI's product policy full KYC/CDD attaches to the employee
+ * at disbursement, and CNIC screening plus the e-CIB check are performed by
+ * ABHI Bank on every origination. None of that is
  * displaced by identity reuse, and the screen says so rather than leaving the
  * reader to assume a green bar means "cleared".
  */
@@ -150,8 +150,8 @@ export function OnboardingPage() {
     reader.onload = () => {
       const text = String(reader.result ?? '');
       // Pull anything CNIC-shaped out of the file, with or without dashes.
-      // The employer template issues them undashed (Product Manual §8.2); the
-      // app captures them dashed. Both must reach the same subject.
+      // The employer template issues them undashed; the app captures them
+      // dashed. Both must reach the same subject.
       const found = [...text.matchAll(/\b\d{5}-?\d{7}-?\d\b/g)].map((m) => m[0]);
       if (found.length === 0) {
         setError(new Error('no rows'));

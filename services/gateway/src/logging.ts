@@ -15,9 +15,9 @@
  *
  * It used to be `\d{13,}` alone, which caught the undashed form `NNNNNNNNNNNNN`
  * and missed `NNNNN-NNNNNNN-N` — and the dashed form is the one that actually
- * arrives. The Product Manual specifies `00000-0000000-0` on the CNIC entry
- * screen (Part Two §9.1) while the employer bulk template issues them undashed
- * (§8.2), so both reach the gateway and only one was being masked.
+ * arrives. ABHI's CNIC entry screen specifies the dashed form
+ * `00000-0000000-0` while the employer bulk template issues them undashed, so
+ * both reach the gateway and only one was being masked.
  *
  * The gap needed no coding mistake to reach: `GET /kyc/history?cnic=` and
  * `GET /audit/events?cnic=` take the CNIC in the query string, and the request
