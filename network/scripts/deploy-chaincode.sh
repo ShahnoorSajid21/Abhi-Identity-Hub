@@ -108,11 +108,41 @@ for spec in "Bank ABHIBankMSP 7051 bank.abhi.local" \
             "Compliance ABHIComplianceMSP 9051 compliance.abhi.local"; do
   # shellcheck disable=SC2086
   set_org ${spec}
-  peer lifecycle chaincode install "${CC_NAME}.tar.gz" || echo "    (already installed)"
+  # `|| echo "(already installed)"` used to sit here, which treated EVERY
+  # install failure as a benign repeat — including the peer's builder failing
+  # to build the package, which is the failure this whole script exists to
+  # surface. Fabric does report an already-installed package as an error, so
+  # that one case is matched explicitly and everything else is fatal.
+  if ! INSTALL_OUT="$(peer lifecycle chaincode install "${CC_NAME}.tar.gz" 2>&1)"; then
+    if printf '%s' "${INSTALL_OUT}" | grep -qi 'already successfully installed'; then
+      echo "    (already installed)"
+    else
+      echo "::error::chaincode install failed on ${CORE_PEER_LOCALMSPID}:"
+      printf '%s\n' "${INSTALL_OUT}" | while IFS= read -r line; do
+        echo "::error::  ${line}"
+      done
+      exit 1
+    fi
+  fi
 done
 
-PACKAGE_ID=$(peer lifecycle chaincode queryinstalled \
+if ! QUERY_OUT="$(peer lifecycle chaincode queryinstalled 2>&1)"; then
+  echo "::error::queryinstalled failed:"
+  printf '%s\n' "${QUERY_OUT}" | while IFS= read -r line; do echo "::error::  ${line}"; done
+  exit 1
+fi
+
+PACKAGE_ID=$(printf '%s\n' "${QUERY_OUT}" \
   | sed -n "s/^Package ID: \(${CC_NAME}_${CC_VERSION}:[a-f0-9]*\).*/\1/p" | head -1)
+
+# An empty package ID means the label never made it onto the peer. Everything
+# downstream would then approve and commit an empty string and fail with
+# something far less obvious than this.
+if [ -z "${PACKAGE_ID}" ]; then
+  echo "::error::no package ID for label ${CC_NAME}_${CC_VERSION}. queryinstalled reported:"
+  printf '%s\n' "${QUERY_OUT}" | while IFS= read -r line; do echo "::error::  ${line}"; done
+  exit 1
+fi
 echo "==> package id: ${PACKAGE_ID}"
 
 echo "==> 3/5 approving for each organization"
