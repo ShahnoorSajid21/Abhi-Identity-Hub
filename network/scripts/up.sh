@@ -61,8 +61,18 @@ fi
 
 echo "==> 2/6 channel genesis block"
 mkdir -p channel-artifacts
-FABRIC_CFG_PATH="${CONFIGTX_CFG}" \
-  configtxgen -profile KycChannel -outputBlock "./channel-artifacts/${CHANNEL}.block" -channelID "${CHANNEL}"
+# configtxgen writes its real complaint to stderr and exits 1, which under
+# `set -e` leaves nothing behind but the exit code. Capture it and annotate.
+if ! CONFIGTX_OUT="$(FABRIC_CFG_PATH="${CONFIGTX_CFG}" configtxgen \
+      -profile KycChannel \
+      -outputBlock "./channel-artifacts/${CHANNEL}.block" \
+      -channelID "${CHANNEL}" 2>&1)"; then
+  printf '%s\n' "${CONFIGTX_OUT}" | while IFS= read -r line; do
+    echo "::error::configtxgen: ${line}"
+  done
+  exit 1
+fi
+printf '%s\n' "${CONFIGTX_OUT}"
 
 echo "==> 3/6 starting containers"
 docker compose -f docker-compose.yaml up -d
