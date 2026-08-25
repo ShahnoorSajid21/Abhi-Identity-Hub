@@ -20,7 +20,14 @@ COPY services ./services
 RUN npm ci --omit=dev --no-audit --no-fund 2>/dev/null || npm install --omit=dev --no-audit --no-fund
 
 # ---- runtime --------------------------------------------------------------
-FROM gcr.io/distroless/nodejs22-debian12:nonroot
+#
+# Debian 13 (trixie), not 12 (bookworm). The CI image scan blocks on CRITICAL
+# and HIGH with ignore-unfixed, and the debian12 base carried six of them —
+# all in the OS layer, none in this project's own packages, and all with fixes
+# available upstream. Nothing here links against the base beyond Node itself:
+# the gateway declares no runtime dependencies at all, so there is no native
+# module to rebuild and the glibc move costs nothing.
+FROM gcr.io/distroless/nodejs22-debian13:nonroot
 
 WORKDIR /app
 COPY --from=build --chown=nonroot:nonroot /build /app

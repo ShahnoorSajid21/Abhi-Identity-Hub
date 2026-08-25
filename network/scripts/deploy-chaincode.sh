@@ -50,6 +50,44 @@ set_org() {
   echo "==> context: ${org}"
 }
 
+# ---------------------------------------------------------------------------
+# Preflight.
+#
+# `peer lifecycle chaincode package` will tar almost anything and succeed. The
+# failure then lands three steps later, inside the peer's chaincode builder,
+# as an npm error in a container whose log nobody is looking at. These are the
+# conditions that have to hold for the package to be RUNNABLE, checked where
+# they are cheap to check.
+#
+# All four are currently unmet. The contract itself is written and complete —
+# KycRegistryContract in src/contract.ts has every transaction and exports the
+# `contracts` array Fabric looks for — but nothing has ever packaged it for a
+# real peer, which is the repository's own open item: written is not proven.
+# ---------------------------------------------------------------------------
+CC_DIR="${ROOT}/${CC_PATH#../}"
+[ -d "${CC_DIR}" ] || CC_DIR="$(cd "${ROOT}/${CC_PATH}" && pwd)"
+preflight_fail=0
+note() { echo "::error::chaincode package is not runnable: $1"; preflight_fail=1; }
+
+grep -q '"fabric-shim"\|"fabric-contract-api"' "${CC_DIR}/package.json" ||
+  note "package.json declares neither fabric-shim nor fabric-contract-api. The peer's builder runs npm install inside the package; fabric-contract-api is imported by src/contract.ts and has to be a real dependency."
+
+grep -q '"scripts"' "${CC_DIR}/package.json" ||
+  note "package.json has no scripts block, so no start script. The peer launches node chaincode with npm start."
+
+if grep -rqE "from '@abhi/" "${CC_DIR}/src"; then
+  note "src/ imports @abhi/canonical, @abhi/merkle and @abhi/types. Only ${CC_PATH} is packaged, those are workspace packages, and they are not published — so they cannot resolve inside the builder. The chaincode needs bundling into a self-contained artefact."
+fi
+
+if ls "${CC_DIR}/src"/*.ts >/dev/null 2>&1; then
+  note "src/ is TypeScript. hyperledger/fabric-nodeenv:2.5 runs Node 18, which has no --experimental-strip-types, so the sources have to be compiled or bundled to JavaScript before packaging."
+fi
+
+if [ "${preflight_fail}" -ne 0 ]; then
+  echo "::error::Packaging the chaincode for a real peer is unfinished work, not a broken script. See the README's known limitations."
+  exit 1
+fi
+
 echo "==> 1/5 packaging"
 peer lifecycle chaincode package "${CC_NAME}.tar.gz" \
   --path "${CC_PATH}" --lang node --label "${CC_NAME}_${CC_VERSION}"
