@@ -2,6 +2,11 @@ node_modules/
 dist/
 build/
 coverage/
+
+# Intermediate tsc output for the chaincode bundle. `build/` above does not
+# cover it — the leading dot matters — and it is a full mirrored source tree,
+# so committing it would put a second copy of packages/ in the history.
+.build/
 *.log
 .env
 .env.*

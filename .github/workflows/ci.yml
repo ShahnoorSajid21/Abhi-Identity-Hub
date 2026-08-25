@@ -348,6 +348,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+
+      # The chaincode is bundled before the network comes up, so a build fault
+      # fails in twenty seconds against a clear error rather than four minutes
+      # later inside a peer's builder container.
+      - uses: actions/setup-node@v7
+        with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
+      - run: npm ci --no-audit --no-fund
+      - name: Build the deployable chaincode package
+        run: npm run chaincode:build
+
       # Pinned to the tag, not to main. Fetching an installer from a moving
       # branch to build the artefact whose provenance the next gate signs
       # would undo the point of the next gate.
@@ -366,7 +376,10 @@ jobs:
 
       - name: Bring up the network
         run: bash network/scripts/up.sh
+      # Already built above; SKIP_CC_BUILD stops the script rebuilding it.
       - name: Deploy chaincode with the real endorsement policy
+        env:
+          SKIP_CC_BUILD: "1"
         run: bash network/scripts/deploy-chaincode.sh
       - name: Assert a single-org write fails
         run: bash tests/fabric/assert-single-org-write-fails.sh

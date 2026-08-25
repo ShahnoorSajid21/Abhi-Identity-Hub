@@ -35,13 +35,14 @@
     "typecheck:web": "npm run typecheck --workspace @abhi/web",
     "verify": "npm run typecheck && npm run typecheck:web && npm run check:cnic && npm run vectors:verify && npm test && npm run test:web && npm run audit:conformance",
     "check:cnic": "node scripts/check-cnic-literals.mjs",
-    "test:web": "npm run test --workspace @abhi/web"
+    "test:web": "npm run test --workspace @abhi/web",
+    "chaincode:build": "node scripts/build-chaincode.mjs"
   },
   "devDependencies": {
     "@grpc/grpc-js": "^1.14.4",
     "@hyperledger/fabric-gateway": "1.7",
     "@types/pg": "^8.23.1",
-    "fabric-contract-api": "2.5",
+    "esbuild": "^0.25.0",
     "pg": "^8.23.0",
     "typescript": "5.7"
   }

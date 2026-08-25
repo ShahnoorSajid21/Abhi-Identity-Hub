@@ -1,0 +1,60 @@
+{
+  // Emit configuration for the deployable chaincode package. The root
+  // tsconfig is a CHECKING configuration — noEmit — so this cannot extend it
+  // without turning every type check in the repository into a build.
+  //
+  // The one setting that drives the whole design is emitDecoratorMetadata.
+  // fabric-contract-api's @Transaction decorator reads design:paramtypes off
+  // Reflect to build each transaction's parameter list, and fabric-shim then
+  // validates incoming argument counts against that list. Without the
+  // metadata the list is empty, every transaction looks like it takes no
+  // arguments, and every invocation is rejected. esbuild cannot emit decorator
+  // metadata at all, which is why tsc compiles first and esbuild only bundles
+  // the JavaScript afterwards.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2023"],
+
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+
+    // Emit, unlike the checking config.
+    "noEmit": false,
+    "outDir": ".build/tsc",
+    "rootDir": "../..",
+    "declaration": false,
+    "sourceMap": false,
+
+    // The sources import each other as './state.ts'. TypeScript rewrites those
+    // to './state.js' on emit, which is what makes the emitted tree runnable.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
+    // @abhi/* resolve to src/index.ts through the workspace symlinks, so they
+    // are compiled into the same emitted tree rather than left as bare
+    // specifiers pointing at TypeScript. esbuild aliases them afterwards.
+    "baseUrl": "../..",
+    "paths": {
+      "@abhi/canonical": ["packages/canonical/src/index.ts"],
+      "@abhi/merkle": ["packages/merkle/src/index.ts"],
+      "@abhi/types": ["packages/types/src/index.ts"]
+    },
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../packages/canonical/src/**/*.ts",
+    "../../packages/merkle/src/**/*.ts",
+    "../../packages/types/src/**/*.ts"
+  ],
+  "exclude": ["test", "**/*.test.ts", "node_modules", ".build", "dist"]
+}
