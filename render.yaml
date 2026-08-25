@@ -1,0 +1,62 @@
+# Gateway half of the split deployment.
+#
+# Vercel hosts the console as static files and proxies /api to whatever
+# GATEWAY_ORIGIN points at. This is one way to be that gateway. Render is not
+# special here — Railway, Fly and Koyeb all work, and the only thing that
+# matters is that the process STAYS ALIVE between requests. The ledger, the
+# vault and the seeded cohort are all in process memory, so a platform that
+# starts a fresh instance per request has no ledger at all.
+#
+# ---------------------------------------------------------------------------
+# READ BEFORE DEPLOYING
+#
+# This runs the POC configuration, which server.ts refuses to start under
+# NODE_ENV=production — deliberately, because it is:
+#
+#   SimulatedLedger  no endorsement, no ordering, no independent peers
+#   SoftwareHsm      pepper and KEK in process memory, derived from seeds
+#                    published in this repository — anyone reading the source
+#                    can recompute every subject ID this deployment produces
+#   MockRails        no real NADRA, no real e-CIB
+#   header identity  no mTLS; any caller can claim any MSP and any role
+#
+# NODE_ENV is set to development below to get past that guard. That is the
+# correct setting for a demo and a firing offence for anything else. This
+# deployment must never hold real customer data, and it belongs behind access
+# control — Render's IP allow-list, or Vercel Deployment Protection on the
+# console in front of it.
+# ---------------------------------------------------------------------------
+
+services:
+  - type: web
+    name: abhi-kyc-gateway-demo
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+
+    buildCommand: npm ci
+    startCommand: node --experimental-strip-types services/gateway/src/server.ts
+
+    # /health is the one route excluded from rate limiting, which is what makes
+    # it usable as a probe that runs every few seconds.
+    healthCheckPath: /health
+
+    envVars:
+      # --experimental-strip-types needs 22.6+; the CI pipeline pins the same.
+      - key: NODE_VERSION
+        value: "22.15.0"
+
+      # See the header. Not an oversight.
+      - key: NODE_ENV
+        value: development
+
+      - key: PORT
+        value: "10000"
+
+      # Demo cohort seeded at boot so the queue and dashboard are not empty on
+      # arrival. Set SEED_COHORT to 0 for an empty ledger.
+      - key: SEED_COHORT
+        value: "1204"
+      - key: SEED_ACTIVITY
+        value: "64"

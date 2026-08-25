@@ -22,6 +22,13 @@ ENDORSEMENT_POLICY="AND('ABHIComplianceMSP.peer', OR('ABHIBankMSP.peer','ABHILen
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# up.sh does this and this script did not, which is why `peer lifecycle
+# chaincode package` failed: CC_PATH is ../chaincode/kyc-registry, relative,
+# and CI invokes the script from the repository root rather than from network/.
+# It was therefore resolving to a chaincode directory one level ABOVE the
+# repository. Every other relative path in this file has the same assumption.
+cd "${ROOT}"
+
 # peer reads core.yaml from FABRIC_CFG_PATH, and core.yaml ships with the
 # Fabric binaries rather than living in this repository. ${ROOT}/config named
 # a directory that has never existed here — see network/scripts/up.sh.

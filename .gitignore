@@ -56,3 +56,6 @@ skills-lock.json
 # README.md is the one document that ships with the code.
 *.md
 !README.md
+
+# Vercel CLI local state.
+.vercel/
