@@ -145,13 +145,30 @@ if [ -z "${PACKAGE_ID}" ]; then
 fi
 echo "==> package id: ${PACKAGE_ID}"
 
+# The ERR trap names the line that failed; it cannot name what the peer said,
+# because the peer writes that to stderr and dies. Every lifecycle command
+# below goes through here so a failure arrives with its own explanation
+# attached — these errors are terse and being told only "line 154" is not
+# enough to act on.
+run_peer() {
+  local what=$1; shift
+  local out
+  if ! out="$("$@" 2>&1)"; then
+    echo "::error::${what} failed:"
+    printf '%s\n' "${out}" | while IFS= read -r line; do echo "::error::  ${line}"; done
+    return 1
+  fi
+  printf '%s\n' "${out}"
+}
+
 echo "==> 3/5 approving for each organization"
 for spec in "Bank ABHIBankMSP 7051 bank.abhi.local" \
             "Lending ABHILendingMSP 8051 lending.abhi.local" \
             "Compliance ABHIComplianceMSP 9051 compliance.abhi.local"; do
   # shellcheck disable=SC2086
   set_org ${spec}
-  peer lifecycle chaincode approveformyorg \
+  run_peer "approveformyorg (${CORE_PEER_LOCALMSPID})" \
+    peer lifecycle chaincode approveformyorg \
     -o localhost:7050 --ordererTLSHostnameOverride orderer0.abhi.local \
     --tls --cafile "${ORDERER_CA}" \
     --channelID "${CHANNEL}" --name "${CC_NAME}" --version "${CC_VERSION}" \
@@ -160,12 +177,25 @@ for spec in "Bank ABHIBankMSP 7051 bank.abhi.local" \
 done
 
 echo "==> 4/5 commit readiness (all three must be true)"
-peer lifecycle chaincode checkcommitreadiness \
+READINESS="$(run_peer 'checkcommitreadiness' \
+  peer lifecycle chaincode checkcommitreadiness \
   --channelID "${CHANNEL}" --name "${CC_NAME}" --version "${CC_VERSION}" \
-  --sequence "${CC_SEQUENCE}" --signature-policy "${ENDORSEMENT_POLICY}" --output json
+  --sequence "${CC_SEQUENCE}" --signature-policy "${ENDORSEMENT_POLICY}" --output json)"
+printf '%s\n' "${READINESS}"
+
+# All three must be true. Committing with one false fails at the orderer with
+# an error that says nothing about which organization did not approve, and the
+# usual cause is the policy string differing by a byte between approvals.
+if printf '%s' "${READINESS}" | grep -q 'false'; then
+  echo "::error::not every organization approved. The endorsement policy string must be"
+  echo "::error::byte-identical across all three approvals, quoting included:"
+  echo "::error::  ${ENDORSEMENT_POLICY}"
+  exit 1
+fi
 
 echo "==> 5/5 committing"
-peer lifecycle chaincode commit \
+run_peer 'commit' \
+  peer lifecycle chaincode commit \
   -o localhost:7050 --ordererTLSHostnameOverride orderer0.abhi.local \
   --tls --cafile "${ORDERER_CA}" \
   --channelID "${CHANNEL}" --name "${CC_NAME}" --version "${CC_VERSION}" \
