@@ -6,7 +6,7 @@ ABHI verifies the same person's identity many times over: wallet onboarding, EWA
 
 ---
 
-> **New here?** Read **[docs/RUNNING.md](docs/RUNNING.md)** — a step-by-step guide to running the POC, with every command explained and a full walkthrough of how the system works.
+> **New here?** Start with **Quick start** below — it runs the whole concept end to end on Node alone. The step-by-step operator guide, the demo runbook and the audit reports are internal programme documents and are not published with this repository.
 
 ## Quick start
 
@@ -94,7 +94,6 @@ vault/                 PostgreSQL schema · envelope encryption · crypto-shred
 infrastructure/        Kubernetes · hardening · default-deny egress
 ci-cd/                 9-gate pipeline, crypto vectors gated first
 tests/                 e2e · integration · security
-docs/                  security, compliance, conformance, gap, readiness reports
 ```
 
 **Two ports make this testable and demoable without Docker:**
@@ -180,7 +179,7 @@ scan, the pinned crypto vectors and the conformance audit.
 
 ## Known limitations of this build
 
-Read `docs/POC_READINESS.md` before demoing. Three things remain, and none can be closed from this machine:
+Read the readiness assessment before demoing — it is held with the programme documents, not in this repository. Three things remain, and none can be closed from this machine:
 
 1. **Fabric has never been started.** Docker is unavailable here. The contract binding (`contract.ts`), the Gateway SDK client (`fabric-ledger.ts`), the network definition and the endorsement policy are all written — but *written* is not *proven*. `tests/fabric/assert-single-org-write-fails.sh` and the `fabric-network` CI job exist to close this in about 30 minutes on a Docker-capable machine. **This is the top priority**, because "no unilateral write" is the claim that carries the whole architecture.
 2. **The PKCS#11 HSM and PostgreSQL vault adapters are written but unexecuted** — no HSM appliance, no PostgreSQL instance. The conformance audit reports these as `UNVERIFIED`, not `IMPLEMENTED`, on purpose.
@@ -192,7 +191,7 @@ Security posture: **13 of 16 findings remediated** with regression tests. The 3 
 
 Four of those findings came from the end-to-end review of 23 August 2026, and three of them share a shape worth naming: **a control that was built, tested and reported implemented, but not connected.** The employer roster gate could not engage over HTTP; the per-subject rate limit did not cover the identifier the console actually sends; the e-CIB check ran on every origination and its answer was discarded. Each had passing unit tests. The conformance audit now asserts call site, wiring and mechanism together rather than grepping for a class name — see `allOf()` in `scripts/conformance-audit.ts`.
 
-Full findings: `docs/SECURITY_AUDIT.md` · `docs/COMPLIANCE_AUDIT.md` · `docs/GAP_ANALYSIS.md`
+Full findings live in the security audit, the compliance control matrix and the gap analysis. Those three reports are internal to the programme and are not published here; `npm run audit:conformance` reproduces the machine-checkable half of them from this repository alone.
 
 ---
 
@@ -211,15 +210,12 @@ npm run network:down
 
 ## Documents
 
-| Document | Purpose |
-|---|---|
-| `docs/RUNNING.md` | **Step-by-step guide: how to run it, and how it works** |
-| `docs/POC_DEMO_RUNBOOK.md` | **Presentation and live-demo runbook — what to click, what to say, what each layer is doing** |
-| `ABHI_Unified_KYC_Ledger_Blueprint.md` | The architecture and 15-section implementation blueprint |
-| `docs/SECURITY_AUDIT.md` | 12 findings with severity and sprint assignment |
-| `docs/COMPLIANCE_AUDIT.md` | Control matrix and instrument-by-instrument mapping |
-| `docs/GAP_ANALYSIS.md` | Everything deferred, and to which sprint |
-| `docs/POC_READINESS.md` | Success criteria assessed; the gate recommendation |
+This README is the only document published with the code. The written record of
+the programme — the implementation blueprint, the operator guide, the demo
+runbook, the security audit, the compliance control matrix, the gap analysis and
+the readiness assessment — is held separately and goes to Compliance directly.
+Source comments throughout this repository cite those documents by name; the
+citations are provenance, not links, and nothing in the build reads them.
 
 ---
 

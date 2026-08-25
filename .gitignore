@@ -30,8 +30,16 @@ vault/data/
 # Agent tooling installed into the working tree by assistant sessions.
 # Not part of the POC: it is local developer tooling that happens to live
 # here, and committing it puts ~900K of unrelated skill definitions into a
-# banking repository's history. .claude/launch.json IS tracked deliberately —
-# it is this project's dev-server config — so the ignore is scoped to skills.
+# banking repository's history. The whole of .claude/ is local — skills,
+# worktrees, per-machine settings and the dev-server config alike.
 .agents/
-.claude/skills/
+.claude/
 skills-lock.json
+
+# Written documentation is internal to the programme and is not published
+# with the code. The blueprint, the audits, the gap analysis, the readiness
+# assessment and the demo runbook go to Compliance directly, not through a
+# source repository. They remain on disk; they are simply not tracked here.
+# README.md is the one document that ships with the code.
+*.md
+!README.md
