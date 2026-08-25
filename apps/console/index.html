@@ -216,7 +216,7 @@ compliance: () => `
   <div class="panel"><h2>Result</h2><pre id="s-out">—</pre></div>`,
 
 dashboard: () => `
-  <div class="panel"><h2>Cost instrumentation</h2>
+  <div class="panel"><h2>Reuse instrumentation</h2>
     <div class="grid" id="d-stats"></div>
     <p class="hint">The reuse rate here is from this session, not from ABHI traffic. The real
        number comes from the Sprint 0 duplication analysis over historical verification logs —
@@ -347,8 +347,6 @@ const WIRE = {
     document.getElementById('d-stats').innerHTML = `
       <div class="stat"><div class="v">${m.rails.callsMade}</div><div class="k">Rail calls made</div></div>
       <div class="stat"><div class="v ok">${m.rails.callsAvoided}</div><div class="k">Rail calls avoided</div></div>
-      <div class="stat"><div class="v">PKR ${m.rails.costSpentPkr}</div><div class="k">Cost incurred</div></div>
-      <div class="stat"><div class="v ok">PKR ${m.rails.costAvoidedPkr}</div><div class="k">Cost avoided</div></div>
       <div class="stat"><div class="v">${rate}%</div><div class="k">Reuse rate (session)</div></div>
       <div class="stat"><div class="v">${m.ecibCalls}</div><div class="k">e-CIB calls (never avoided)</div></div>
       <div class="stat"><div class="v">${m.rails.capLockouts}</div><div class="k">Biometric lockouts</div></div>
