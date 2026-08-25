@@ -26,8 +26,8 @@ jobs:
     name: Cryptographic reference vectors
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       - name: Verify pinned construction
@@ -48,8 +48,8 @@ jobs:
     needs: crypto-vectors
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       # node --experimental-strip-types RUNS TypeScript without CHECKING it.
@@ -67,8 +67,8 @@ jobs:
     needs: [crypto-vectors, typecheck]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       - name: Merkle + canonical + policy + chaincode
@@ -80,8 +80,8 @@ jobs:
     needs: crypto-vectors
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       - name: PII tripwire, vault AAD, production guards, authority separation
@@ -93,8 +93,8 @@ jobs:
     needs: [crypto-vectors, typecheck]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       # 55 tests over the step-up router, the capture screens and the decision
@@ -111,8 +111,8 @@ jobs:
     needs: [unit, security-controls]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       - run: npm run test:integration
@@ -126,8 +126,8 @@ jobs:
     needs: [unit]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       - name: Every blueprint requirement must map to an implementation
@@ -138,7 +138,7 @@ jobs:
     name: Secret and PII scanning
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0 }
       - name: Reject committed key material
         run: |
@@ -146,7 +146,7 @@ jobs:
             echo "::error::Key material must never be committed."
             exit 1
           fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}" }
       - name: Reject undeclared CNIC-shaped literals
         # Marker-based, not path-based. Any file legitimately containing a
@@ -162,17 +162,27 @@ jobs:
     name: SAST and dependency scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: "${{ env.NODE_VERSION }}", cache: npm }
       - run: npm ci --no-audit --no-fund
       - name: npm audit (high and above blocks)
         run: npm audit --audit-level=high
+      # semgrep/semgrep-action@v1 was archived in April 2024 — its own
+      # description says so — and fails on sight. The maintained path is the
+      # CLI; the public rule packs need no account and no token. Pinned rather
+      # than floating: a SAST gate that silently changes what it enforces is
+      # not a gate. `--error` is what makes a finding fail the build.
       - name: Semgrep
-        uses: semgrep/semgrep-action@v1
-        with: { config: "p/typescript p/security-audit p/secrets" }
+        run: |
+          pipx install semgrep==1.174.0
+          semgrep scan --error --metrics=off \
+            --config p/typescript \
+            --config p/security-audit \
+            --config p/secrets \
+            --exclude node_modules --exclude dist
       - name: Trivy filesystem scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           severity: CRITICAL,HIGH
@@ -200,7 +210,7 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@v3
 
       # GHCR rejects uppercase in an image path and the repository name has
@@ -212,7 +222,7 @@ jobs:
           echo "image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
       - name: Build gateway image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.gateway
@@ -225,7 +235,7 @@ jobs:
       # Scan before anything leaves the runner. A CRITICAL or HIGH finding has
       # to stop the build, not get published and then reported.
       - name: Scan image
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: abhi-kyc-gateway:${{ github.sha }}
           severity: CRITICAL,HIGH
@@ -255,7 +265,7 @@ jobs:
       - name: Push the scanned image
         id: push
         if: github.ref == 'refs/heads/main'
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/Dockerfile.gateway
@@ -265,7 +275,7 @@ jobs:
 
       - name: Install cosign
         if: github.ref == 'refs/heads/main'
-        uses: sigstore/cosign-installer@v3
+        uses: sigstore/cosign-installer@v4
 
       # Sign the DIGEST, never the tag. A tag is mutable and points at whatever
       # was pushed last; signing one certifies a name rather than an artefact,
@@ -298,14 +308,31 @@ jobs:
     # Requires Docker; runs the real 3-org network and the real endorsement
     # policy. This is the only job that exercises endorsement for real — the
     # simulator cannot, by construction.
+
+    # install-fabric.sh drops bin/ AND config/ (core.yaml, orderer.yaml) into
+    # the working directory. Every peer invocation in the scripts below reads
+    # core.yaml from FABRIC_CFG_PATH, so they need to know where it landed.
+    env:
+      FABRIC_BIN_CFG: ${{ github.workspace }}/config
+
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+      # Pinned to the tag, not to main. Fetching an installer from a moving
+      # branch to build the artefact whose provenance the next gate signs
+      # would undo the point of the next gate.
       - name: Install Fabric binaries
         run: |
-          curl -sSLO https://raw.githubusercontent.com/hyperledger/fabric/main/scripts/install-fabric.sh
+          curl -sSLO https://raw.githubusercontent.com/hyperledger/fabric/v2.5.9/scripts/install-fabric.sh
           chmod +x install-fabric.sh
           ./install-fabric.sh --fabric-version 2.5.9 binary docker
           echo "$PWD/bin" >> "$GITHUB_PATH"
+
+      # docker-compose.yaml takes every credential from the environment with
+      # `:?` guards, so it refuses to start without this file. Developers are
+      # told to copy it; CI was never told anything.
+      - name: Local network credentials
+        run: cp network/.env.example network/.env
+
       - name: Bring up the network
         run: bash network/scripts/up.sh
       - name: Deploy chaincode with the real endorsement policy

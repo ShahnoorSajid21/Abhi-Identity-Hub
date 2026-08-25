@@ -19,7 +19,10 @@ NET="${ROOT}/network"
 CHANNEL="${CHANNEL:-kyc-channel}"
 CC_NAME="kyc-registry"
 
-export FABRIC_CFG_PATH="${NET}/config"
+# See network/scripts/up.sh: peer wants the core.yaml that ships with the
+# Fabric binaries, not a directory in this repository. ROOT is the repo root
+# here, which is where install-fabric.sh puts config/.
+export FABRIC_CFG_PATH="${FABRIC_BIN_CFG:-${ROOT}/config}"
 ORG_BASE="${NET}/organizations/peerOrganizations"
 ORDERER_CA="${NET}/organizations/ordererOrganizations/abhi.local/tlsca/tlsca.abhi.local-cert.pem"
 

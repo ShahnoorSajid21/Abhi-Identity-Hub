@@ -36,7 +36,7 @@ ENV NODE_ENV=production \
 # is what stops the POC configuration from silently becoming a deployment.
 LABEL org.opencontainers.image.title="abhi-kyc-gateway" \
       org.opencontainers.image.vendor="ABHI Microfinance Bank" \
-      org.opencontainers.image.source="https://github.com/abhi/kyc-ledger" \
+      org.opencontainers.image.source="https://github.com/ShahnoorSajid21/Abhi-Identity-Hub" \
       security.abhi.classification="crown-jewel"
 
 # Core dumps disabled and swap off are host-level controls (see k8s manifest);

@@ -17,7 +17,11 @@ CC_PATH="../chaincode/kyc-registry"
 ENDORSEMENT_POLICY="AND('ABHIComplianceMSP.peer', OR('ABHIBankMSP.peer','ABHILendingMSP.peer'))"
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export FABRIC_CFG_PATH="${ROOT}/config"
+
+# peer reads core.yaml from FABRIC_CFG_PATH, and core.yaml ships with the
+# Fabric binaries rather than living in this repository. ${ROOT}/config named
+# a directory that has never existed here — see network/scripts/up.sh.
+export FABRIC_CFG_PATH="${FABRIC_BIN_CFG:-${ROOT}/../config}"
 ORG_BASE="${ROOT}/organizations/peerOrganizations"
 ORDERER_CA="${ROOT}/organizations/ordererOrganizations/abhi.local/tlsca/tlsca.abhi.local-cert.pem"
 
